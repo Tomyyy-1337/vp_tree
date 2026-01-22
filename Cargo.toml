@@ -2,6 +2,13 @@
 name = "vp_tree"
 version = "0.1.0"
 edition = "2024"
+authors = ["Tom Paßberg"]
+license = "MIT"
+description = "Vantage Point Tree for fast k-NN and radius searches in metric spaces."
+repository = "https://github.com/Tomyyy-1337/vp_tree/"
+keywords = ["rust", "utility", "data", "search", "distance", "similarity", "knn"]
+categories = ["Data Structures", "Algorithms", "Search"]
+readme = "README.md"
 
 [dependencies]
 fastrand = "2.3.0"
