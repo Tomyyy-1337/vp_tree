@@ -3,7 +3,7 @@
 //! A [`VpTree`] is a data structure that enables efficient searches for nearest neighbor, 
 //! k-nearest neighbors, and radius searches in metric spaces. 
 //! 
-//! The VpTree requires stored elements to implement the [`Distance`] trait to themselves.
+//! The [`VpTree`] requires stored elements to implement the [`Distance`] trait to themselves.
 //! Additionally, search targets are required to implement [`Distance`] to the stored type.
 //! 
 //! While constructing the tree takes longer than a naive linear search,
