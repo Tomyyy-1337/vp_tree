@@ -35,6 +35,11 @@ impl<T: Distance<T>> VpTree<T> {
         &self.items
     }
 
+    /// Consumes the VpTree and returns the items stored within it. The items are returned in an arbitrary order.
+    pub fn into_items(self) -> Vec<T> {
+        self.items
+    }
+
     /// Searches for the k closest items to the target, returning them sorted by distance (closest first).
     pub fn search_closest_k_sorted<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
         let mut heap = BinaryHeap::with_capacity(k);
