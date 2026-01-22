@@ -10,7 +10,7 @@ While constructing the tree takes longer than a naive linear search,
 nearest neighbors and radius searches are significantly faster using the VpTree, 
 resulting in overall performance gains for multiple searches on the same dataset. 
  
-## Example 
+## Basic Example 
 ```rust
 use vp_tree::*;
 
