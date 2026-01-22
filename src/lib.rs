@@ -40,7 +40,7 @@
 //! let nearest_neighbor = vp_tree.search_nearest_neighbor(&target);
 //! assert_eq!(nearest_neighbor.unwrap(), &Point { x: 2.0, y: 2.0 });
 //! 
-//! let k_nearest = vp_tree.search_closest_k_sorted(&target, 2).collect::<Vec<_>>();
+//! let k_nearest = vp_tree.search_k_closest_sorted(&target, 2).collect::<Vec<_>>();
 //! assert_eq!(k_nearest, vec![&Point { x: 2.0, y: 2.0 }, &Point { x: 3.0, y: 3.0 }]);
 //! 
 //! let radius_neighbors = vp_tree.search_in_radius_sorted(&target, 1.0).collect::<Vec<_>>();
@@ -83,13 +83,12 @@
 //! let nearest_neighbor = vp_tree.search_nearest_neighbor(&search_point);
 //! assert_eq!(nearest_neighbor.unwrap().data, "C".to_string());
 //! 
-//! let k_nearest = vp_tree.search_closest_k_sorted(&search_point, 2).collect::<Vec<_>>();
+//! let k_nearest = vp_tree.search_k_closest_sorted(&search_point, 2).collect::<Vec<_>>();
 //! assert_eq!(k_nearest[0].data, "C".to_string());
 //! 
 //! let radius_neighbors = vp_tree.search_in_radius_sorted(&search_point, 1.0).collect::<Vec<_>>();
 //! assert_eq!(radius_neighbors[0].data, "C".to_string());
 //! ```
-mod test;
 mod heap_item;
 mod distance;
 mod vp_tree;

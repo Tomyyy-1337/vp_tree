@@ -3,7 +3,7 @@
 mod tests {
     use std::collections::BinaryHeap;
 
-    use crate::*;
+    use vp_tree::{Distance, VpTree};
 
     #[test]
     fn test_nn() {
@@ -58,7 +58,7 @@ mod tests {
         let vp_tree = VpTree::new(points);
 
         let target = TestPoint { value: 3.4 };
-        let nearest = vp_tree.search_closest_k_sorted(&target, 2).collect::<Vec<_>>();
+        let nearest = vp_tree.search_k_closest_sorted(&target, 2).collect::<Vec<_>>();
 
         assert_eq!(nearest.len(), 2);
         assert_eq!(nearest[0].value, 3.0);
@@ -80,7 +80,7 @@ mod tests {
         let vp_tree = VpTree::new(points);
 
         let target = TestPoint { value: 3.5 };
-        let nearest = vp_tree.search_closest_k_sorted(&target, 2).collect::<Vec<_>>();
+        let nearest = vp_tree.search_k_closest_sorted(&target, 2).collect::<Vec<_>>();
         assert_eq!(nearest.len(), 0);
     }
 
@@ -104,7 +104,7 @@ mod tests {
             let vp_tree = VpTree::new(points.clone());
             
             let target = TestPoint { value: 500.0 };
-            let nearest = vp_tree.search_closest_k_sorted(&target, 10).collect::<Vec<_>>();
+            let nearest = vp_tree.search_k_closest_sorted(&target, 10).collect::<Vec<_>>();
             
             let baseline_nearest = baseline_linear_search(&points, &target, 10);
             

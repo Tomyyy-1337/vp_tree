@@ -1,7 +1,7 @@
 
-/// Distance trait to be implemented by types stored in the VpTree.
-/// The distance method should return a non-negative f64 representing the distance between self and other.
-/// Elements in the tree have to implement Distance to themselves. Additionally, search targets can implement Distance to the stored type.
+/// [`Distance`] trait to be implemented by types stored in the [`crate::VpTree`].
+/// The [`Distance::distance`] method should return a non-negative [f64] representing the distance between self and other.
+/// Elements in the tree have to implement [`Distance`] to themselves. Additionally, search targets can implement [`Distance`] to the stored type.
 /// 
 /// ## Example 1
 /// ```rust
@@ -19,7 +19,7 @@
 /// }
 /// ```
 /// 
-/// The point in the first example does not store any additional data, we use the same struct for both storage and search target.
+/// The [`Point`] struct in the first example does not store any additional data, we use the same struct for both storage and search target.
 /// 
 /// ## Example 2 
 /// ```rust
@@ -44,9 +44,9 @@
 ///    }
 /// }    
 /// ```
-/// The second example shows a DataPoint struct that stores additional data alongside the point coordinates.
-/// The DataPoint struct implements Distance to itself, it can be stored in the VpTree. Additionally, the Point struct implements Distance to DataPoint,
-/// allowing it to be used as a search target without storing the additional unnecessary data.
+/// The second example shows a `DataPoint` struct that stores additional data alongside the point coordinates.
+/// The `DataPoint` struct implements [`Distance`] to itself to enable storage in the [`crate::VpTree`]. 
+/// Additionally, the `Point` struct implements [`Distance`] to `DataPoint`, allowing it to be used as a search target without storing additional unnecessary data.
 pub trait Distance<T> {
     /// Metric distance between self and other. Should be non-negative. Squared distances do not work. 
     fn distance(&self, other: &T) -> f64;

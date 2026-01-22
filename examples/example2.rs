@@ -37,6 +37,6 @@ fn main() {
     let target_point = Point { x: 500.0, y: 500.0 };
 
     let _nearest_neighbor = vp_tree.search_nearest_neighbor(&target_point);
-    let _k_closest_neighbors = vp_tree.search_closest_k(&target_point, 5);
+    let _k_closest_neighbors = vp_tree.search_k_closest(&target_point, 5);
     let _in_radius = vp_tree.search_in_radius(&target_point, 100.0);
 }

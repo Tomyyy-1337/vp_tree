@@ -3,8 +3,8 @@ use std::collections::BinaryHeap;
 use crate::{Distance, heap_item::HeapItem};
 
 /// Vantage-Point Tree (VP-Tree) implementation for efficient nearest neighbor search and radius searches.
-/// Requires stored elements to implement the Distance trait to themselves.
-/// Search targets are required to implement Distance to the stored type.
+/// Requires stored elements to implement the [`Distance`] trait to themselves.
+/// Search targets are required to implement [`Distance`] to the stored type.
 /// 
 /// While constructing the tree takes longer than a naive linear search, nearest neighbor and radius searches are significantly faster 
 /// resulting in overall performance gains for multiple searches on the same dataset.
@@ -23,27 +23,15 @@ struct Node {
 }
 
 impl<T: Distance<T>> VpTree<T> {
-    /// Constructs a new VpTree from a Vec of items. The items are consumed and stored within the tree.
+    /// Constructs a new [`VpTree`] from a [`Vec`] of items. The items are consumed and stored within the tree.
     pub fn new(mut items: Vec<T>) -> Self {
         let num_items = items.len();
         let root = Self::build_from_points(&mut items, 0, num_items);
         VpTree { items, root }
     }   
 
-    /// Searches for the k closest items to the target, returning them sorted by distance (closest first).
-    pub fn search_closest_k_sorted<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
-        let mut heap = BinaryHeap::with_capacity(k);
-        let mut tau = f64::INFINITY;
-
-        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
-
-        heap.into_sorted_vec()
-            .into_iter()
-            .map(|item| &self.items[item.index])
-    }
-
     /// Searches for the k closest items to the target, returning them in arbitrary order.
-    pub fn search_closest_k<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
+    pub fn search_k_closest<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
         let mut heap = BinaryHeap::with_capacity(k);
         let mut tau = f64::INFINITY;
 
@@ -53,16 +41,12 @@ impl<T: Distance<T>> VpTree<T> {
             .map(|item| &self.items[item.index])
     }
 
-    /// Searches for all items within the given radius from the target, returning them sorted by distance (closest first).
-    pub fn search_in_radius_sorted<U: Distance<T>>(
-        &self,
-        target: &U,
-        radius: f64,
-    ) -> impl Iterator<Item = &T> {
-        let mut heap = BinaryHeap::new();
-        let mut tau = radius;
+    /// Searches for the k closest items to the target, returning them sorted by distance (closest first).
+    pub fn search_k_closest_sorted<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
+        let mut heap = BinaryHeap::with_capacity(k);
+        let mut tau = f64::INFINITY;
 
-        self.search_rec(self.root.as_ref(), target, usize::MAX, &mut heap, &mut tau);
+        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
 
         heap.into_sorted_vec()
             .into_iter()
@@ -84,6 +68,55 @@ impl<T: Distance<T>> VpTree<T> {
             .map(|item| &self.items[item.index])
     }
 
+    /// Searches for all items within the given radius from the target, returning them sorted by distance (closest first).
+    pub fn search_in_radius_sorted<U: Distance<T>>(
+        &self,
+        target: &U,
+        radius: f64,
+    ) -> impl Iterator<Item = &T> {
+        let mut heap = BinaryHeap::new();
+        let mut tau = radius;
+
+        self.search_rec(self.root.as_ref(), target, usize::MAX, &mut heap, &mut tau);
+
+        heap.into_sorted_vec()
+            .into_iter()
+            .map(|item| &self.items[item.index])
+    }
+
+    /// Find the k closest items to the target within the given radius, returning them in arbitrary order.
+    pub fn search_k_closest_in_radius<U: Distance<T>>(
+        &self,
+        target: &U,
+        radius: f64,
+        k: usize,
+    ) -> impl Iterator<Item = &T> {
+        let mut heap = BinaryHeap::with_capacity(k);
+        let mut tau = radius;
+
+        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
+
+        heap.into_iter()
+            .map(|item| &self.items[item.index])
+    }
+
+    /// Find the k closest items to the target within the given radius, returning them sorted by distance (closest first).
+    pub fn search_k_closest_in_radius_sorted<U: Distance<T>>(
+        &self,
+        target: &U,
+        radius: f64,
+        k: usize,
+    ) -> impl Iterator<Item = &T> {
+        let mut heap = BinaryHeap::with_capacity(k);
+        let mut tau = radius;
+
+        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
+
+        heap.into_sorted_vec()
+            .into_iter()
+            .map(|item| &self.items[item.index])
+    }
+
     /// Searches for the single nearest neighbor to the target.
     pub fn search_nearest_neighbor<U: Distance<T>>(&self, target: &U) -> Option<&T> {
         let mut best: Option<HeapItem> = None;
@@ -96,7 +129,7 @@ impl<T: Distance<T>> VpTree<T> {
         &self.items
     }
 
-    /// Consumes the VpTree and returns the items stored within it. The items are returned in an arbitrary order.
+    /// Consumes the [`VpTree`] and returns the items stored within it. The items are returned in an arbitrary order.
     pub fn into_items(self) -> Vec<T> {
         self.items
     }
