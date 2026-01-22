@@ -30,16 +30,6 @@ impl<T: Distance<T>> VpTree<T> {
         VpTree { items, root }
     }   
 
-    /// Returns a reference to the items stored in the VpTree. The items are stored in an arbitrary order.
-    pub fn items(&self) -> &Vec<T> {
-        &self.items
-    }
-
-    /// Consumes the VpTree and returns the items stored within it. The items are returned in an arbitrary order.
-    pub fn into_items(self) -> Vec<T> {
-        self.items
-    }
-
     /// Searches for the k closest items to the target, returning them sorted by distance (closest first).
     pub fn search_closest_k_sorted<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
         let mut heap = BinaryHeap::with_capacity(k);
@@ -99,6 +89,16 @@ impl<T: Distance<T>> VpTree<T> {
         let mut best: Option<HeapItem> = None;
         self.search_nearest_rec(self.root.as_ref(), target, &mut best);
         best.map(|item| &self.items[item.index])
+    }
+
+    /// Returns a reference to the items stored in the VpTree. The items are stored in an arbitrary order.
+    pub fn items(&self) -> &Vec<T> {
+        &self.items
+    }
+
+    /// Consumes the VpTree and returns the items stored within it. The items are returned in an arbitrary order.
+    pub fn into_items(self) -> Vec<T> {
+        self.items
     }
 
     fn build_from_points(items: &mut Vec<T>, lower: usize, upper: usize) -> Option<Node> {
