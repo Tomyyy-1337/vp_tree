@@ -147,26 +147,19 @@ impl<T: Distance<T>> VpTree<T> {
         
         let i = fastrand::usize(lower..upper);
         items.swap(lower, i);
-
-        let random_item_ptr: *const T = &items[lower];
         
+        let (random_element, slice) = items[(lower)..upper].split_first_mut().unwrap();
         let median = (upper + lower) / 2;
         
-        items[(lower + 1)..upper]
-            .select_nth_unstable_by(median - (lower + 1), |a, b| {
-                // SAFETY: random_item_ptr points to items[lower] and is outside the slice being sorted. It won't be moved during the sort.
-                let random_item: &T = unsafe { &*random_item_ptr };
-                let dist_a = random_item.distance_heuristic(a);
-                let dist_b = random_item.distance_heuristic(b);
-                dist_a.partial_cmp(&dist_b).unwrap()
-            }
-        );
-
-        let random_item: &T = unsafe { &*random_item_ptr };
+        slice.select_nth_unstable_by(median - (lower + 1), |a, b| {
+            let dist_a = random_element.distance_heuristic(a);
+            let dist_b = random_element.distance_heuristic(b);
+            dist_a.partial_cmp(&dist_b).unwrap()
+        });
 
         Some(Node {
             index: lower,
-            threshold: random_item.distance(&items[median]),
+            threshold: random_element.distance(&slice[median - (lower + 1)]),
             left: Self::build_from_points(items, lower + 1, median).map(Box::new),
             right: Self::build_from_points(items, median, upper).map(Box::new),
         })
@@ -228,7 +221,7 @@ impl<T: Distance<T>> VpTree<T> {
 
                 match (left, right) {
                     (None, None) => return,
-                    _ if dist < *threshold => {
+                    _ if dist <= *threshold => {
                         self.search_nearest_rec(left.as_deref(), target, best);
                         if best.is_none() || dist + best.as_ref().unwrap().distance >= *threshold {
                             self.search_nearest_rec(right.as_deref(), target, best);

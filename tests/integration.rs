@@ -116,6 +116,10 @@ mod tests {
             let baseline_nearest = baseline_linear_search(&points, &target, 10);
             
             assert_eq!(nearest, baseline_nearest);
+
+            let baseline_nn = baseline_linear_search(&points, &target, 1);
+            let nn = vp_tree.search_nearest_neighbor(&target).unwrap();
+            assert_eq!(nn, baseline_nn[0]);
         }
     
     }
