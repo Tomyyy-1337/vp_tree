@@ -21,16 +21,22 @@
 //! }
 //! 
 //! impl Distance<Point> for Point {
-//!   fn distance(&self, other: &Point) -> f64 {
-//!     ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()    
-//!   }
+//!    fn distance_heuristic(&self, other: &Point) -> f64 {
+//!       let dx = self.x - other.x;
+//!       let dy = self.y - other.y;
+//!       dx * dx + dy * dy
+//!    }
+//! 
+//!    fn distance(&self, other: &Point) -> f64 {
+//!       self.distance_heuristic(other).sqrt()
+//!    }
 //! }
 //! 
 //! let points = vec![
-//!   Point { x: 0.0, y: 0.0 },
-//!   Point { x: 1.0, y: 1.0 },
-//!   Point { x: 2.0, y: 2.0 },
-//!   Point { x: 3.0, y: 3.0 },
+//!    Point { x: 0.0, y: 0.0 },
+//!    Point { x: 1.0, y: 1.0 },
+//!    Point { x: 2.0, y: 2.0 },
+//!    Point { x: 3.0, y: 3.0 },
 //! ];
 //! 
 //! let vp_tree = VpTree::new(points);
@@ -56,25 +62,32 @@
 //!    data: String,
 //! }
 //! impl Distance<DataPoint> for DataPoint {
-//!    fn distance(&self, other: &DataPoint) -> f64 {
-//!       ((self.point.x - other.point.x).powi(2) + (self.point.y - other.point.y).powi(2)).sqrt()
-//!   }
+//!     fn distance_heuristic(&self, other: &DataPoint) -> f64 {
+//!         let dx = self.point.x - other.point.x;
+//!         let dy = self.point.y - other.point.y;
+//!         dx * dx + dy * dy
+//!     }
+//!     fn distance(&self, other: &DataPoint) -> f64 {
+//!         self.distance_heuristic(other).sqrt()
+//!     }
 //! }
 //! struct Point {
-//!    x: f64,
-//!    y: f64,
+//!     x: f64,
+//!     y: f64,
 //! }
 //! impl Distance<DataPoint> for Point {
 //!     fn distance(&self, other: &DataPoint) -> f64 {
-//!        ((self.x - other.point.x).powi(2) + (self.y - other.point.y).powi(2)).sqrt()
+//!         let dx = self.x - other.point.x;
+//!         let dy = self.y - other.point.y;
+//!         ((dx * dx) + (dy * dy)).sqrt()
 //!    }
 //! }    
 //! 
 //! let data_points = vec![
-//!   DataPoint { point: Point { x: 0.0, y: 0.0 }, data: "A".to_string() },
-//!   DataPoint { point: Point { x: 1.0, y: 1.0 }, data: "B".to_string() },
-//!   DataPoint { point: Point { x: 2.0, y: 2.0 }, data: "C".to_string() },
-//!   DataPoint { point: Point { x: 3.0, y: 3.0 }, data: "D".to_string() },  
+//!     DataPoint { point: Point { x: 0.0, y: 0.0 }, data: "A".to_string() },
+//!     DataPoint { point: Point { x: 1.0, y: 1.0 }, data: "B".to_string() },
+//!     DataPoint { point: Point { x: 2.0, y: 2.0 }, data: "C".to_string() },
+//!     DataPoint { point: Point { x: 3.0, y: 3.0 }, data: "D".to_string() },  
 //! ];
 //! 
 //! let vp_tree = VpTree::new(data_points);
