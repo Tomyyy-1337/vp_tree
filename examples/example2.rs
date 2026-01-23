@@ -1,4 +1,4 @@
-use vp_tree::Distance;
+use vp_tree::{Distance, VpTree};
 
 struct DataPoint {
     x: f64,
@@ -12,8 +12,14 @@ struct Point {
 }
 
 impl Distance<DataPoint> for DataPoint {
+    fn distance_heuristic(&self, other: &DataPoint) -> f64 {
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        dx * dx + dy * dy
+    }
+
     fn distance(&self, other: &DataPoint) -> f64 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+        self.distance_heuristic(other).sqrt()
     }
 }
 
@@ -24,15 +30,13 @@ impl Distance<DataPoint> for Point {
 }
 
 fn main() {
-    let random_points = (0..10_000)
+    let vp_tree = (0..10_000)
         .map(|i| DataPoint {
             x: fastrand::f64() * 1000.0,
             y: fastrand::f64() * 1000.0,
             _data: format!("Point {}", i),
         })
-        .collect::<Vec<_>>();
-
-    let vp_tree = vp_tree::VpTree::new(random_points);
+        .collect::<VpTree<DataPoint>>();
 
     let target_point = Point { x: 500.0, y: 500.0 };
 

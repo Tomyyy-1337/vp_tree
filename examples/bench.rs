@@ -8,7 +8,13 @@ struct Point {
 
 impl Distance<Point> for Point {
     fn distance(&self, other: &Point) -> f64 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+        self.distance_heuristic(other).sqrt()
+    }
+
+    fn distance_heuristic(&self, other: &Point) -> f64 {
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        dx * dx + dy * dy
     }
 }
 
@@ -66,19 +72,17 @@ fn main() {
 
 fn find_nearest_neighbor_linear<'a>(points: &'a Vec<Point>, target: &Point) -> Option<&'a Point> {
     points.iter().min_by(|a, b| {
-        let dist_a = a.distance(target);
-        let dist_b = b.distance(target);
+        let dist_a = a.distance_heuristic(target);
+        let dist_b = b.distance_heuristic(target);
         dist_a.partial_cmp(&dist_b).unwrap()
     })
 }
 
 fn find_k_closest_linear<'a>(points: &'a Vec<Point>, target: &Point, k: usize) -> Vec<&'a Point> {
-    let mut points_with_distance: Vec<(&Point, f64)> = points
+    let points_with_distance: Vec<(&Point, f64)> = points
         .iter()
-        .map(|p| (p, p.distance(target)))
+        .map(|p| (p, p.distance_heuristic(target)))
         .collect();
-    
-    points_with_distance.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
     
     points_with_distance.iter().take(k).map(|(p, _)| *p).collect()
 }
@@ -86,6 +90,6 @@ fn find_k_closest_linear<'a>(points: &'a Vec<Point>, target: &Point, k: usize) -
 fn find_in_radius_linear<'a>(points: &'a Vec<Point>, target: &Point, radius: f64) -> Vec<&'a Point> {
     points
         .iter()
-        .filter(|p| p.distance(target) <= radius)
+        .filter(|p| p.distance_heuristic(target) <= radius * radius)
         .collect()
 }

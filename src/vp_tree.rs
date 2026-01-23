@@ -30,15 +30,14 @@ impl<T: Distance<T>> VpTree<T> {
         VpTree { items, root }
     }   
 
-    /// Searches for the k closest items to the target, returning them in arbitrary order.
+    /// Searches for the k closest items to the target, returning them in arbitrary order. 
     pub fn search_k_closest<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
         let mut heap = BinaryHeap::with_capacity(k);
         let mut tau = f64::INFINITY;
 
         self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
 
-        heap.into_iter()
-            .map(|item| &self.items[item.index])
+        heap.into_iter().map(|item| &self.items[item.index])
     }
 
     /// Searches for the k closest items to the target, returning them sorted by distance (closest first).
@@ -64,8 +63,7 @@ impl<T: Distance<T>> VpTree<T> {
 
         self.search_rec(self.root.as_ref(), target, usize::MAX, &mut heap, &mut tau);
 
-        heap.into_iter()
-            .map(|item| &self.items[item.index])
+        heap.into_iter().map(|item| &self.items[item.index])
     }
 
     /// Searches for all items within the given radius from the target, returning them sorted by distance (closest first).
@@ -96,8 +94,7 @@ impl<T: Distance<T>> VpTree<T> {
 
         self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
 
-        heap.into_iter()
-            .map(|item| &self.items[item.index])
+        heap.into_iter().map(|item| &self.items[item.index])
     }
 
     /// Find the k closest items to the target within the given radius, returning them sorted by distance (closest first).
@@ -125,7 +122,7 @@ impl<T: Distance<T>> VpTree<T> {
     }
 
     /// Returns a reference to the items stored in the VpTree. The items are stored in an arbitrary order.
-    pub fn items(&self) -> &Vec<T> {
+    pub fn items(&self) -> &[T] {
         &self.items
     }
 
@@ -134,46 +131,44 @@ impl<T: Distance<T>> VpTree<T> {
         self.items
     }
 
-    fn build_from_points(items: &mut Vec<T>, lower: usize, upper: usize) -> Option<Node> {
+    fn build_from_points(items: &mut[T], lower: usize, upper: usize) -> Option<Node> {
         if upper == lower {
             return None;
         }
 
-        if (upper - lower) > 1 {
-            let i = fastrand::usize(lower..upper);
-            items.swap(lower, i);
-
-            let random_item_ptr: *const T = &items[lower];
-            
-            let median = (upper + lower) / 2;
-            
-            items[(lower + 1)..upper]
-                .select_nth_unstable_by(median - (lower + 1), |a, b| {
-                    // SAFETY: random_item_ptr points to items[lower], which is not moved as it has the lowest possible distance to itself.
-                    // As the function is unstabe the element may be swapped with elements that share the distance value, but that is acceptable.
-                    let random_item: &T = unsafe { &*random_item_ptr };
-                    let dist_a = random_item.distance(a);
-                    let dist_b = random_item.distance(b);
-                    dist_a.partial_cmp(&dist_b).unwrap()
-                }
-            );
-
-            // SAFETY: random_item_ptr is still valid here.
-            let random_item: &T = unsafe { &*random_item_ptr };
-
+        if (upper - lower) == 1 {
             return Some(Node {
                 index: lower,
-                threshold: random_item.distance(&items[median]),
-                left: Self::build_from_points(items, lower + 1, median).map(Box::new),
-                right: Self::build_from_points(items, median, upper).map(Box::new),
+                threshold: 0.0,
+                left: None,
+                right: None,
             });
         }
+        
+        let i = fastrand::usize(lower..upper);
+        items.swap(lower, i);
+
+        let random_item_ptr: *const T = &items[lower];
+        
+        let median = (upper + lower) / 2;
+        
+        items[(lower + 1)..upper]
+            .select_nth_unstable_by(median - (lower + 1), |a, b| {
+                // SAFETY: random_item_ptr points to items[lower] and is outside the slice being sorted. It won't be moved during the sort.
+                let random_item: &T = unsafe { &*random_item_ptr };
+                let dist_a = random_item.distance_heuristic(a);
+                let dist_b = random_item.distance_heuristic(b);
+                dist_a.partial_cmp(&dist_b).unwrap()
+            }
+        );
+
+        let random_item: &T = unsafe { &*random_item_ptr };
 
         Some(Node {
             index: lower,
-            threshold: 0.0,
-            left: None,
-            right: None,
+            threshold: random_item.distance(&items[median]),
+            left: Self::build_from_points(items, lower + 1, median).map(Box::new),
+            right: Self::build_from_points(items, median, upper).map(Box::new),
         })
     }
 
@@ -200,18 +195,14 @@ impl<T: Distance<T>> VpTree<T> {
             
             match (left, right) {
                 (None, None) => return,
-                (left_node, right_node) if dist < *threshold => {
-                    if dist - *tau <= *threshold {
-                        self.search_rec(left_node.as_deref(), target, k, heap, tau);
-                    }
-                    if dist + *tau >= *threshold {
-                        self.search_rec(right_node.as_deref(), target, k, heap, tau);
-                    }
-                }
-                (left, right) => {
+                _ if dist <= *threshold => {
+                    self.search_rec(left.as_deref(), target, k, heap, tau);
                     if dist + *tau >= *threshold {
                         self.search_rec(right.as_deref(), target, k, heap, tau);
                     }
+                }
+                _ => {
+                    self.search_rec(right.as_deref(), target, k, heap, tau);
                     if dist - *tau <= *threshold {
                         self.search_rec(left.as_deref(), target, k, heap, tau);
                     }
@@ -237,13 +228,13 @@ impl<T: Distance<T>> VpTree<T> {
 
                 match (left, right) {
                     (None, None) => return,
-                    (left_node, right_node) if dist < *threshold => {
-                        self.search_nearest_rec(left_node.as_deref(), target, best);
+                    _ if dist < *threshold => {
+                        self.search_nearest_rec(left.as_deref(), target, best);
                         if best.is_none() || dist + best.as_ref().unwrap().distance >= *threshold {
-                            self.search_nearest_rec(right_node.as_deref(), target, best);
+                            self.search_nearest_rec(right.as_deref(), target, best);
                         }
                     }
-                    (left, right) => {
+                    _ => {
                         self.search_nearest_rec(right.as_deref(), target, best);
                         if best.is_none() || dist - best.as_ref().unwrap().distance <= *threshold {
                             self.search_nearest_rec(left.as_deref(), target, best);

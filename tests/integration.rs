@@ -85,6 +85,42 @@ mod tests {
     }
 
     #[test]
+    fn test_random_points_2d() {
+        #[derive(Debug, Clone, PartialEq)]
+        struct TestPoint {
+            x: f64,
+            y: f64,
+        }
+        impl Distance<TestPoint> for TestPoint {
+            fn distance(&self, other: &TestPoint) -> f64 {
+                self.distance_heuristic(other).sqrt()
+            }
+
+            fn distance_heuristic(&self, other: &TestPoint) -> f64 {
+                let dx = self.x - other.x;
+                let dy = self.y - other.y;
+                dx * dx + dy * dy
+            }
+        }
+
+        for _ in 0..1000 {
+            let points: Vec<TestPoint> = (0..1000)
+                .map(|_| TestPoint { x: fastrand::f64() * 1000.0, y: fastrand::f64() * 1000.0 })
+                .collect();
+            
+            let vp_tree = VpTree::new(points.clone());
+            
+            let target = TestPoint { x: 500.0, y: 500.0 };
+            let nearest = vp_tree.search_k_closest_sorted(&target, 10).collect::<Vec<_>>();
+            
+            let baseline_nearest = baseline_linear_search(&points, &target, 10);
+            
+            assert_eq!(nearest, baseline_nearest);
+        }
+    
+    }
+
+    #[test]
     fn test_random_points() {
         #[derive(Debug, Clone, PartialEq)]
         struct TestPoint {
