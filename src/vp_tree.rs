@@ -148,10 +148,10 @@ impl<T: Distance<T>> VpTree<T> {
         let i = fastrand::usize(lower..upper);
         items.swap(lower, i);
         
-        let (random_element, slice) = items[(lower)..upper].split_first_mut().unwrap();
+        let (random_element, slice) = items[lower..upper].split_first_mut().unwrap();
         let median = (upper + lower) / 2;
         
-        slice.select_nth_unstable_by(median - (lower + 1), |a, b| {
+        let (_ , median_element, _) = slice.select_nth_unstable_by(median - (lower + 1), |a, b| {
             let dist_a = random_element.distance_heuristic(a);
             let dist_b = random_element.distance_heuristic(b);
             dist_a.partial_cmp(&dist_b).unwrap()
@@ -159,7 +159,7 @@ impl<T: Distance<T>> VpTree<T> {
 
         Some(Node {
             index: lower,
-            threshold: random_element.distance(&slice[median - (lower + 1)]),
+            threshold: random_element.distance(median_element),
             left: Self::build_from_points(items, lower + 1, median).map(Box::new),
             right: Self::build_from_points(items, median, upper).map(Box::new),
         })
@@ -185,20 +185,20 @@ impl<T: Distance<T>> VpTree<T> {
                     *tau = heap.peek().unwrap().distance;
                 }
             }
-            
-            match (left, right) {
-                (None, None) => return,
-                _ if dist <= *threshold => {
-                    self.search_rec(left.as_deref(), target, k, heap, tau);
-                    if dist + *tau >= *threshold {
-                        self.search_rec(right.as_deref(), target, k, heap, tau);
-                    }
-                }
-                _ => {
+
+            if left.is_none() && right.is_none() {
+                return;
+            }
+
+            if dist <= *threshold {
+                self.search_rec(left.as_deref(), target, k, heap, tau);
+                if dist + *tau >= *threshold {
                     self.search_rec(right.as_deref(), target, k, heap, tau);
-                    if dist - *tau <= *threshold {
-                        self.search_rec(left.as_deref(), target, k, heap, tau);
-                    }
+                }
+            } else {
+                self.search_rec(right.as_deref(), target, k, heap, tau);
+                if dist - *tau <= *threshold {
+                    self.search_rec(left.as_deref(), target, k, heap, tau);
                 }
             }
         }
@@ -210,31 +210,28 @@ impl<T: Distance<T>> VpTree<T> {
         target: &U,
         best: &mut Option<HeapItem>,
     ) {
-        match node {
-            None => return,
-            Some(Node { index, threshold, left, right }) => {
-                let dist = target.distance(&self.items[*index]);
+        if let Some(Node { index, threshold, left, right }) = node {
+            let dist = target.distance(&self.items[*index]);
 
-                if best.is_none() || dist < best.as_ref().unwrap().distance {
-                    *best = Some(HeapItem { index: *index, distance: dist });
-                }
-
-                match (left, right) {
-                    (None, None) => return,
-                    _ if dist <= *threshold => {
-                        self.search_nearest_rec(left.as_deref(), target, best);
-                        if best.is_none() || dist + best.as_ref().unwrap().distance >= *threshold {
-                            self.search_nearest_rec(right.as_deref(), target, best);
-                        }
-                    }
-                    _ => {
-                        self.search_nearest_rec(right.as_deref(), target, best);
-                        if best.is_none() || dist - best.as_ref().unwrap().distance <= *threshold {
-                            self.search_nearest_rec(left.as_deref(), target, best);
-                        }
-                    }
-                }
+            if best.is_none() || dist < best.as_ref().unwrap().distance {
+                *best = Some(HeapItem { index: *index, distance: dist });
             }
+
+            if left.is_none() && right.is_none() {
+                return;
+            }
+
+            if dist <= *threshold {
+                self.search_nearest_rec(left.as_deref(), target, best);
+                if best.is_none() || dist + best.as_ref().unwrap().distance >= *threshold {
+                    self.search_nearest_rec(right.as_deref(), target, best);
+                }
+            } else {
+                self.search_nearest_rec(right.as_deref(), target, best);
+                if best.is_none() || dist - best.as_ref().unwrap().distance <= *threshold {
+                    self.search_nearest_rec(left.as_deref(), target, best);
+                }
+            }            
         }
     }
 }

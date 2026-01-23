@@ -1,3 +1,5 @@
+use std::collections::BinaryHeap;
+
 use vp_tree::*;
 
 #[derive(Debug)]
@@ -43,9 +45,9 @@ fn main() {
     println!("Time taken to find 5 closest neighbors linearly: {:?}. Result count: {}", k_baseline_duration, k_closest_linear.len());
 
     let start = std::time::Instant::now();
-    let in_radius_linear = find_in_radius_linear(&random_points, &target_point, 5.0);
+    let in_radius_linear = find_in_radius_linear(&random_points, &target_point, 2.0);
     let radius_baseline_duration = start.elapsed();
-    println!("Time taken to find points within radius 5.0 linearly: {:?}, found {} points", radius_baseline_duration, in_radius_linear.len());
+    println!("Time taken to find points within radius 2.0 linearly: {:?}, found {} points", radius_baseline_duration, in_radius_linear.len());
     
     println!("\nVpTree search:");
 
@@ -65,9 +67,9 @@ fn main() {
     println!("Time taken to search 5 closest neighbors: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, k_baseline_duration.as_secs_f64() / duration.as_secs_f64(), k_closest_neighbors.count());
 
     let start = std::time::Instant::now();
-    let in_radius = vp_tree.search_in_radius(&target_point, 5.0);
+    let in_radius = vp_tree.search_in_radius(&target_point, 2.0);
     let duration = start.elapsed();
-    println!("Time taken to search points within radius 5.0: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, radius_baseline_duration.as_secs_f64() / duration.as_secs_f64(), in_radius.count());
+    println!("Time taken to search points within radius 2.0: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, radius_baseline_duration.as_secs_f64() / duration.as_secs_f64(), in_radius.count());
 }
 
 fn find_nearest_neighbor_linear<'a>(points: &'a Vec<Point>, target: &Point) -> Option<&'a Point> {
@@ -79,12 +81,49 @@ fn find_nearest_neighbor_linear<'a>(points: &'a Vec<Point>, target: &Point) -> O
 }
 
 fn find_k_closest_linear<'a>(points: &'a Vec<Point>, target: &Point, k: usize) -> Vec<&'a Point> {
-    let points_with_distance: Vec<(&Point, f64)> = points
-        .iter()
-        .map(|p| (p, p.distance_heuristic(target)))
-        .collect();
-    
-    points_with_distance.iter().take(k).map(|(p, _)| *p).collect()
+    let mut binary_heap = BinaryHeap::new();
+
+    for point in points.iter() {
+        let distance = point.distance_heuristic(target);
+        binary_heap.push(HeapItemHelper { distance, point });
+        if binary_heap.len() > k {
+            binary_heap.pop();
+        }
+    }
+
+    binary_heap
+        .into_sorted_vec()
+        .into_iter()
+        .take(k)    
+        .map(|item| item.point)
+        .collect()  
+}
+
+struct HeapItemHelper<'a> {
+    distance: f64,
+    point: &'a Point,
+}
+
+impl<'a> PartialEq for HeapItemHelper<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.distance == other.distance
+    }
+}
+
+impl<'a> Eq for HeapItemHelper<'a> {}
+
+impl<'a> PartialOrd for HeapItemHelper<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        // Reverse order for min-heap behavior
+        other.distance.partial_cmp(&self.distance)
+    }
+}
+
+impl<'a> Ord for HeapItemHelper<'a> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Reverse order for min-heap behavior
+        other.distance.partial_cmp(&self.distance).unwrap()
+    }
 }
 
 fn find_in_radius_linear<'a>(points: &'a Vec<Point>, target: &Point, radius: f64) -> Vec<&'a Point> {

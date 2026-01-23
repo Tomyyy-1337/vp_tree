@@ -25,7 +25,9 @@ impl Distance<DataPoint> for DataPoint {
 
 impl Distance<DataPoint> for Point {
     fn distance(&self, other: &DataPoint) -> f64 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        ((dx * dx) + (dy * dy)).sqrt()
     }
 }
 
