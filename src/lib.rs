@@ -1,11 +1,14 @@
 //! # Vantage-Point Tree (VP-Tree) 
 //! 
-//! A [`VpTree`] is a data structure that enables efficient searches for nearest neighbor, 
+//! A [`VpTree`] is a data structure that enables efficient nearest neighbor, 
 //! k-nearest neighbors, and radius searches in metric spaces with arbitrary dimensionality.
 //! 
 //! The implementation is generic over any type that implements the [`Distance`] trait.
-//! The [`VpTree`] requires stored elements to implement the [`Distance`] in relation to themselves.
-//! Additionally, search targets are required to implement [`Distance`] to the stored type.
+//! The [`VpTree`] requires stored elements to implement the [`Distance`] in relation to themselves. 
+//! For faster tree construction, it is recommended to also implement the [`Distance::distance_heuristic`] method (for example squared distance to avoid square root calculations)
+//! to accelerate tree construction.
+//! 
+//! For searching in the [`VpTree`], either the stored type or a different type that implements the [`Distance`] trait in relation to the stored type can be used.
 //! 
 //! While constructing the tree takes longer than a naive linear search,
 //! nearest neighbor and radius searches are significantly faster using the [`VpTree`], 
