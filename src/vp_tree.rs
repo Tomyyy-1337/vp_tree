@@ -30,6 +30,8 @@ impl<T: Distance<T>> VpTree<T> {
         VpTree { items, root }
     }   
 
+    /// Performs a query on the VpTree using the specified target and query parameters.
+    /// Returns a vector of references to the items that match the query criteria.
     pub fn querry<U, Q>(&self, target: &U, querry: Q) -> Vec<&T> 
     where
         U: Distance<T>,
@@ -54,7 +56,7 @@ impl<T: Distance<T>> VpTree<T> {
     }
 
     /// Searches for the single nearest neighbor to the target. Results may include the target itself if it is present in the tree.
-    /// To exclude the target itself from the results (distance zero), use [`search_nearest_neighbor_distinct`].
+    /// To exclude the target itself from the results (distance zero), use [`Self::nearest_neighbor_exclusive`].
     pub fn nearest_neighbor<U: Distance<T>>(&self, target: &U) -> Option<&T> {
         let mut best: Option<HeapItem> = None;
         self.search_nearest_rec(self.root.as_ref(), target, &mut best, false);
@@ -62,7 +64,7 @@ impl<T: Distance<T>> VpTree<T> {
     }
 
     /// Searches for the single nearest neighbor to the target, excluding the target itself if it is present in the tree.
-    /// To include the target itself in the results, use [`search_nearest_neighbor`].
+    /// To include the target itself in the results, use [`Self::nearest_neighbor`].
     pub fn nearest_neighbor_exclusive<U: Distance<T>>(&self, target: &U) -> Option<&T> {
         let mut best: Option<HeapItem> = None;
         self.search_nearest_rec(self.root.as_ref(), target, &mut best, true);
