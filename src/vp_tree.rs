@@ -26,15 +26,13 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
     /// Constructs a new [`VpTree`] from a [`Vec`] of items. The items are consumed and stored within the tree. 
     /// This constructor uses a single thread. For parallel construction, use [`Self::new_parallel`].
     pub fn new(mut items: Vec<T>) -> Self {
-        let num_items = items.len();
-        let root = Self::build_from_points(&mut items, 0, num_items, 0, 1);
+        let root = Self::build_from_points(&mut items, 0, 1);
         VpTree { items, root }
     }   
 
     /// Constructs a new [`VpTree`] from a [`Vec`] of items using multiple threads. The items are consumed and stored within the tree.
     pub fn new_parallel(mut items: Vec<T>, threads: usize) -> Self {
-        let num_items = items.len();
-        let root = Self::build_from_points(&mut items, 0, num_items, 0, threads);
+        let root = Self::build_from_points(&mut items, 0, threads);
         VpTree { items, root }
     }
 
@@ -89,12 +87,13 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
         self.items
     }
 
-    fn build_from_points(items: &mut[T], lower: usize, upper: usize, offset: usize, threads: usize) -> Option<Node> {
-        if upper == lower {
+    fn build_from_points(items: &mut[T], offset: usize, threads: usize) -> Option<Node> {
+        let upper = items.len();
+        if upper == 0 {
             return None;
         }
 
-        if (upper - lower) == 1 {
+        if upper == 1 {
             return Some(Node {
                 index: offset,
                 threshold: 0.0,
@@ -103,13 +102,13 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
             });
         }
         
-        let i = fastrand::usize(lower..upper);
-        items.swap(lower, i);
+        let i = fastrand::usize(0..upper);
+        items.swap(0, i);
         
-        let (random_element, slice) = items[lower..upper].split_first_mut().unwrap();
-        let median = (upper + lower) / 2;
+        let (random_element, slice) = items[0..upper].split_first_mut().unwrap();
+        let median = upper / 2;
         
-        let (_, median_item, _) = slice.select_nth_unstable_by(median - (lower + 1), |a, b| {
+        let (_, median_item, _) = slice.select_nth_unstable_by(median - 1, |a, b| {
             let dist_a = random_element.distance_heuristic(a);
             let dist_b = random_element.distance_heuristic(b);
             dist_a.partial_cmp(&dist_b).unwrap()
@@ -117,19 +116,19 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
 
         let threshold = random_element.distance(median_item);
         
-        let (left_slice, right_slice) = items[lower + 1..upper].split_at_mut(median - (lower + 1));
+        let (left_slice, right_slice) = items[1..upper].split_at_mut(median - 1);
         
         let (left, right) = if threads <= 1 {
-            let left = Self::build_from_points(left_slice, 0, left_slice.len(), offset + 1, 1).map(Box::new);	
-            let right = Self::build_from_points(right_slice, 0, right_slice.len(), offset + left_slice.len() + 1, 1).map(Box::new);	
+            let left = Self::build_from_points(left_slice, offset + 1, 1).map(Box::new);	
+            let right = Self::build_from_points(right_slice, offset + left_slice.len() + 1, 1).map(Box::new);	
             (left, right)
         } else {
             scope(|s| {
                 let left_len = left_slice.len();
                 let left_handle = s.spawn(|| {
-                    Self::build_from_points(left_slice, 0, left_slice.len(), offset + 1, threads / 2 + threads % 2).map(Box::new)
+                    Self::build_from_points(left_slice, offset + 1, threads / 2 + threads % 2).map(Box::new)
                 });
-                let right = Self::build_from_points(right_slice, 0, right_slice.len(), offset + left_len + 1, threads / 2).map(Box::new);
+                let right = Self::build_from_points(right_slice, offset + left_len + 1, threads / 2).map(Box::new);
                 (left_handle.join().unwrap(), right)
             })
         };
