@@ -1,4 +1,4 @@
-use std::collections::BinaryHeap;
+use std::{collections::BinaryHeap, thread::sleep};
 
 use vp_tree::*;
 
@@ -52,9 +52,14 @@ fn main() {
     println!("\nVpTree search:");
 
     let start = std::time::Instant::now();
-    let vp_tree = vp_tree::VpTree::new(random_points);
+    let vp_tree = vp_tree::VpTree::new_parallel(random_points, 4);
     let duration = start.elapsed();
-    println!("Time taken to build VpTree with {} points: {:?}", num_points, duration);
+    println!("Time taken to build VpTree with {} points on 4 threads: {:?}", num_points, duration);
+
+    let start = std::time::Instant::now();
+    let vp_tree = vp_tree::VpTree::new(vp_tree.into_items());
+    let duration = start.elapsed();
+    println!("Time taken to build VpTree with {} points on single thread: {:?}", num_points, duration);
 
     let start = std::time::Instant::now();
     let nearest_neighbor = vp_tree.nearest_neighbor(&target_point);

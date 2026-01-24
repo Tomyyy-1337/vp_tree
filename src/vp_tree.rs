@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::BinaryHeap};
+use std::{borrow::Borrow, collections::BinaryHeap, thread::scope};
 
 use crate::{Distance, Querry, heap_item::HeapItem};
 
@@ -22,13 +22,21 @@ struct Node {
     right: Option<Box<Node>>,
 }
 
-impl<T: Distance<T>> VpTree<T> {
-    /// Constructs a new [`VpTree`] from a [`Vec`] of items. The items are consumed and stored within the tree.
+impl<T: Distance<T> + Send + Sync> VpTree<T> {
+    /// Constructs a new [`VpTree`] from a [`Vec`] of items. The items are consumed and stored within the tree. 
+    /// This constructor uses a single thread. For parallel construction, use [`Self::new_parallel`].
     pub fn new(mut items: Vec<T>) -> Self {
         let num_items = items.len();
-        let root = Self::build_from_points(&mut items, 0, num_items);
+        let root = Self::build_from_points(&mut items, 0, num_items, 0, 1);
         VpTree { items, root }
     }   
+
+    /// Constructs a new [`VpTree`] from a [`Vec`] of items using multiple threads. The items are consumed and stored within the tree.
+    pub fn new_parallel(mut items: Vec<T>, threads: usize) -> Self {
+        let num_items = items.len();
+        let root = Self::build_from_points(&mut items, 0, num_items, 0, threads);
+        VpTree { items, root }
+    }
 
     /// Performs a query on the VpTree using the specified target and query parameters.
     /// Returns a vector of references to the items that match the query criteria.
@@ -81,14 +89,14 @@ impl<T: Distance<T>> VpTree<T> {
         self.items
     }
 
-    fn build_from_points(items: &mut[T], lower: usize, upper: usize) -> Option<Node> {
+    fn build_from_points(items: &mut[T], lower: usize, upper: usize, offset: usize, threads: usize) -> Option<Node> {
         if upper == lower {
             return None;
         }
 
         if (upper - lower) == 1 {
             return Some(Node {
-                index: lower,
+                index: offset,
                 threshold: 0.0,
                 left: None,
                 right: None,
@@ -101,17 +109,36 @@ impl<T: Distance<T>> VpTree<T> {
         let (random_element, slice) = items[lower..upper].split_first_mut().unwrap();
         let median = (upper + lower) / 2;
         
-        let (_ , median_element, _) = slice.select_nth_unstable_by(median - (lower + 1), |a, b| {
+        let (_, median_item, _) = slice.select_nth_unstable_by(median - (lower + 1), |a, b| {
             let dist_a = random_element.distance_heuristic(a);
             let dist_b = random_element.distance_heuristic(b);
             dist_a.partial_cmp(&dist_b).unwrap()
         });
 
+        let threshold = random_element.distance(median_item);
+        
+        let (left_slice, right_slice) = items[lower + 1..upper].split_at_mut(median - (lower + 1));
+        
+        let (left, right) = if threads <= 1 {
+            let left = Self::build_from_points(left_slice, 0, left_slice.len(), offset + 1, 1).map(Box::new);	
+            let right = Self::build_from_points(right_slice, 0, right_slice.len(), offset + left_slice.len() + 1, 1).map(Box::new);	
+            (left, right)
+        } else {
+            scope(|s| {
+                let left_len = left_slice.len();
+                let left_handle = s.spawn(|| {
+                    Self::build_from_points(left_slice, 0, left_slice.len(), offset + 1, threads / 2 + threads % 2).map(Box::new)
+                });
+                let right = Self::build_from_points(right_slice, 0, right_slice.len(), offset + left_len + 1, threads / 2).map(Box::new);
+                (left_handle.join().unwrap(), right)
+            })
+        };
+
         Some(Node {
-            index: lower,
-            threshold: random_element.distance(median_element),
-            left: Self::build_from_points(items, lower + 1, median).map(Box::new),
-            right: Self::build_from_points(items, median, upper).map(Box::new),
+            index: offset,
+            threshold,
+            left: left,
+            right: right,
         })
     }
 
@@ -188,7 +215,7 @@ impl<T: Distance<T>> VpTree<T> {
     }
 }
 
-impl<T: Distance<T>> FromIterator<T> for VpTree<T> {
+impl<T: Distance<T> + Send + Sync> FromIterator<T> for VpTree<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let items: Vec<T> = iter.into_iter().collect();
         VpTree::new(items)
