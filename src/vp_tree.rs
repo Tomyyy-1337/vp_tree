@@ -1,6 +1,89 @@
-use std::collections::BinaryHeap;
+use std::{borrow::Borrow, collections::BinaryHeap};
 
 use crate::{Distance, heap_item::HeapItem};
+
+/// Query parameters for searching the VpTree.
+#[derive(Debug, Clone)]
+pub struct Querry {
+    max_items: usize,
+    max_distance: f64,
+    exclusive: bool,
+    sorted: bool,
+}
+
+impl Default for Querry {
+    /// Create a new Querry that returns all items. Querry can be restricted using the builder methods.
+    fn default() -> Self {
+        Querry {
+            max_items: usize::MAX,
+            max_distance: f64::INFINITY,
+            exclusive: false,
+            sorted: false,
+        }
+    }
+}
+
+impl Querry {
+    /// Create a new Querry with the given parameters.
+    /// ## Parameters
+    /// - `max_items`: Maximum number of items to return. The nearest items are returned.
+    /// - `max_distance`: Maximum distance for items to be included in the querry.
+    /// - `exclusive`: Whether the querry should be exclusive (exclude items with distance zero).
+    /// - `sorted`: Whether the returned items should be sorted by distance (closest first).
+    pub fn new(max_items: usize, max_distance: f64, exclusive: bool, sorted: bool) -> Self {
+        assert!(max_items > 0, "max_items must be greater than zero");
+        assert!(max_distance >= 0.0, "max_distance must be non-negative");
+        Querry {
+            max_items,
+            max_distance,
+            exclusive,
+            sorted,
+        }
+    }
+
+    /// Create a Querry for k-nearest neighbors.
+    pub fn k_nearest_neighbors(max_items: usize) -> Self {
+        Querry::new(max_items, f64::INFINITY, false, false)
+    }
+
+    /// Create a Querry for k-nearest neighbors within a given radius.
+    pub fn k_nearest_neighbors_within_radius(max_items: usize, max_distance: f64) -> Self {
+        Querry::new(max_items, max_distance, false, false)
+    }
+
+    /// Create a Querry for all neighbors within a given radius.
+    pub fn neighbors_within_radius(max_distance: f64) -> Self {
+        Querry::new(usize::MAX, max_distance, false, false)
+    }
+
+    /// Prevents items with distance zero from being included in the results.
+    /// By default, items with distance zero are included.
+    pub fn exclusive(mut self) -> Self {
+        self.exclusive = true;
+        self
+    }
+
+    /// Sets the output to be sorted by distance (closest first).
+    /// By default, the output is not sorted.
+    pub fn sorted(mut self) -> Self {
+        self.sorted = true;
+        self
+    }
+
+    /// Sets the maximum distance for items to be included in the results.
+    pub fn within_radius(mut self, max_distance: f64) -> Self {
+        assert!(max_distance >= 0.0, "max_distance must be non-negative");
+        self.max_distance = max_distance;
+        self
+    }
+
+    /// Sets the maximum number of items to be returned. The nearest items are returned.
+    pub fn max_items(mut self, max_items: usize) -> Self {
+        assert!(max_items > 0, "max_items must be greater than zero");
+        self.max_items = max_items;
+        self
+    }
+}
 
 /// Vantage-Point Tree (VP-Tree) implementation for efficient nearest neighbor search and radius searches.
 /// Requires stored elements to implement the [`Distance`] trait to themselves.
@@ -30,94 +113,42 @@ impl<T: Distance<T>> VpTree<T> {
         VpTree { items, root }
     }   
 
-    /// Searches for the k closest items to the target, returning them in arbitrary order. 
-    pub fn search_k_closest<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
-        let mut heap = BinaryHeap::with_capacity(k);
-        let mut tau = f64::INFINITY;
-
-        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
-
-        heap.into_iter().map(|item| &self.items[item.index])
-    }
-
-    /// Searches for the k closest items to the target, returning them sorted by distance (closest first).
-    pub fn search_k_closest_sorted<U: Distance<T>>(&self, target: &U, k: usize) -> impl Iterator<Item = &T> {
-        let mut heap = BinaryHeap::with_capacity(k);
-        let mut tau = f64::INFINITY;
-
-        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
-
-        heap.into_sorted_vec()
-            .into_iter()
-            .map(|item| &self.items[item.index])
-    }
-
-    /// Searches for all items within the given radius from the target, returning them in arbitrary order.
-    pub fn search_in_radius<U: Distance<T>>(
-        &self,
-        target: &U,
-        radius: f64,
-    ) -> impl Iterator<Item = &T> {
+    pub fn querry<U, Q>(&self, target: &U, querry: Q) -> Vec<&T> 
+    where
+        U: Distance<T>,
+        Q: Borrow<Querry>,
+    {
+        let querry = querry.borrow();
         let mut heap = BinaryHeap::new();
-        let mut tau = radius;
+        let mut tau = querry.max_distance;
 
-        self.search_rec(self.root.as_ref(), target, usize::MAX, &mut heap, &mut tau);
+        self.search_rec(self.root.as_ref(), target, querry.max_items, &mut heap, &mut tau, querry.exclusive);
 
-        heap.into_iter().map(|item| &self.items[item.index])
+        if querry.sorted {
+            heap.into_sorted_vec()
+                .into_iter()
+                .map(|item| &self.items[item.index])
+                .collect()
+        } else {
+            heap.into_iter()
+                .map(|item| &self.items[item.index])
+                .collect()
+        }
     }
 
-    /// Searches for all items within the given radius from the target, returning them sorted by distance (closest first).
-    pub fn search_in_radius_sorted<U: Distance<T>>(
-        &self,
-        target: &U,
-        radius: f64,
-    ) -> impl Iterator<Item = &T> {
-        let mut heap = BinaryHeap::new();
-        let mut tau = radius;
-
-        self.search_rec(self.root.as_ref(), target, usize::MAX, &mut heap, &mut tau);
-
-        heap.into_sorted_vec()
-            .into_iter()
-            .map(|item| &self.items[item.index])
-    }
-
-    /// Find the k closest items to the target within the given radius, returning them in arbitrary order.
-    pub fn search_k_closest_in_radius<U: Distance<T>>(
-        &self,
-        target: &U,
-        radius: f64,
-        k: usize,
-    ) -> impl Iterator<Item = &T> {
-        let mut heap = BinaryHeap::with_capacity(k);
-        let mut tau = radius;
-
-        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
-
-        heap.into_iter().map(|item| &self.items[item.index])
-    }
-
-    /// Find the k closest items to the target within the given radius, returning them sorted by distance (closest first).
-    pub fn search_k_closest_in_radius_sorted<U: Distance<T>>(
-        &self,
-        target: &U,
-        radius: f64,
-        k: usize,
-    ) -> impl Iterator<Item = &T> {
-        let mut heap = BinaryHeap::with_capacity(k);
-        let mut tau = radius;
-
-        self.search_rec(self.root.as_ref(), target, k, &mut heap, &mut tau);
-
-        heap.into_sorted_vec()
-            .into_iter()
-            .map(|item| &self.items[item.index])
-    }
-
-    /// Searches for the single nearest neighbor to the target.
-    pub fn search_nearest_neighbor<U: Distance<T>>(&self, target: &U) -> Option<&T> {
+    /// Searches for the single nearest neighbor to the target. Results may include the target itself if it is present in the tree.
+    /// To exclude the target itself from the results (distance zero), use [`search_nearest_neighbor_distinct`].
+    pub fn nearest_neighbor<U: Distance<T>>(&self, target: &U) -> Option<&T> {
         let mut best: Option<HeapItem> = None;
-        self.search_nearest_rec(self.root.as_ref(), target, &mut best);
+        self.search_nearest_rec(self.root.as_ref(), target, &mut best, false);
+        best.map(|item| &self.items[item.index])
+    }
+
+    /// Searches for the single nearest neighbor to the target, excluding the target itself if it is present in the tree.
+    /// To include the target itself in the results, use [`search_nearest_neighbor`].
+    pub fn nearest_neighbor_exclusive<U: Distance<T>>(&self, target: &U) -> Option<&T> {
+        let mut best: Option<HeapItem> = None;
+        self.search_nearest_rec(self.root.as_ref(), target, &mut best, true);
         best.map(|item| &self.items[item.index])
     }
 
@@ -172,11 +203,12 @@ impl<T: Distance<T>> VpTree<T> {
         k: usize,
         heap: &mut BinaryHeap<HeapItem>,
         tau: &mut f64,
+        exclusive: bool
     ) {
         if let Some(Node { index, threshold, left, right }) = node {
             let dist = target.distance(&self.items[*index]);
 
-            if dist <= *tau {
+            if dist <= *tau && (!exclusive || dist > 0.0) {
                 if heap.len() == k {
                     heap.pop();
                 }
@@ -191,14 +223,14 @@ impl<T: Distance<T>> VpTree<T> {
             }
 
             if dist <= *threshold {
-                self.search_rec(left.as_deref(), target, k, heap, tau);
+                self.search_rec(left.as_deref(), target, k, heap, tau, exclusive);
                 if dist + *tau >= *threshold {
-                    self.search_rec(right.as_deref(), target, k, heap, tau);
+                    self.search_rec(right.as_deref(), target, k, heap, tau, exclusive);
                 }
             } else {
-                self.search_rec(right.as_deref(), target, k, heap, tau);
+                self.search_rec(right.as_deref(), target, k, heap, tau, exclusive);
                 if dist - *tau <= *threshold {
-                    self.search_rec(left.as_deref(), target, k, heap, tau);
+                    self.search_rec(left.as_deref(), target, k, heap, tau, exclusive);
                 }
             }
         }
@@ -209,11 +241,12 @@ impl<T: Distance<T>> VpTree<T> {
         node: Option<&Node>,
         target: &U,
         best: &mut Option<HeapItem>,
+        distinct: bool,
     ) {
         if let Some(Node { index, threshold, left, right }) = node {
             let dist = target.distance(&self.items[*index]);
 
-            if best.is_none() || dist < best.as_ref().unwrap().distance {
+            if (best.is_none() || dist < best.as_ref().unwrap().distance) && (!distinct || dist > 0.0) {
                 *best = Some(HeapItem { index: *index, distance: dist });
             }
 
@@ -222,14 +255,14 @@ impl<T: Distance<T>> VpTree<T> {
             }
 
             if dist <= *threshold {
-                self.search_nearest_rec(left.as_deref(), target, best);
+                self.search_nearest_rec(left.as_deref(), target, best, distinct);
                 if best.is_none() || dist + best.as_ref().unwrap().distance >= *threshold {
-                    self.search_nearest_rec(right.as_deref(), target, best);
+                    self.search_nearest_rec(right.as_deref(), target, best, distinct);
                 }
             } else {
-                self.search_nearest_rec(right.as_deref(), target, best);
+                self.search_nearest_rec(right.as_deref(), target, best, distinct);
                 if best.is_none() || dist - best.as_ref().unwrap().distance <= *threshold {
-                    self.search_nearest_rec(left.as_deref(), target, best);
+                    self.search_nearest_rec(left.as_deref(), target, best, distinct);
                 }
             }            
         }

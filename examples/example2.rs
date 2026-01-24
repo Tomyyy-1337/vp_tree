@@ -1,4 +1,4 @@
-use vp_tree::{Distance, VpTree};
+use vp_tree::*;
 
 struct DataPoint {
     x: f64,
@@ -42,7 +42,13 @@ fn main() {
 
     let target_point = Point { x: 500.0, y: 500.0 };
 
-    let _nearest_neighbor = vp_tree.search_nearest_neighbor(&target_point);
-    let _k_closest_neighbors = vp_tree.search_k_closest(&target_point, 5);
-    let _in_radius = vp_tree.search_in_radius(&target_point, 100.0);
+    let _nearest_neighbor = vp_tree.nearest_neighbor(&target_point);
+    let _k_closest_neighbors = vp_tree.querry(&target_point, Querry::k_nearest_neighbors(5));
+    let _in_radius = vp_tree.querry(&target_point, Querry::neighbors_within_radius(100.0));
+
+    let full_querry = Querry::k_nearest_neighbors(5)
+        .within_radius(100.0)
+        .sorted()
+        .exclusive();
+    let _custom_querry = vp_tree.querry(&target_point, full_querry);
 }

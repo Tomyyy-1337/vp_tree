@@ -57,19 +57,20 @@ fn main() {
     println!("Time taken to build VpTree with {} points: {:?}", num_points, duration);
 
     let start = std::time::Instant::now();
-    let nearest_neighbor = vp_tree.search_nearest_neighbor(&target_point);
+    let nearest_neighbor = vp_tree.nearest_neighbor(&target_point);
     let duration = start.elapsed();
     println!("Time taken to search nearest neighbor: {:?}, {:.2?} times faster than linear search. Result: {:?}", duration, baseline_duration.as_secs_f64() / duration.as_secs_f64(), nearest_neighbor);
 
     let start = std::time::Instant::now();
-    let k_closest_neighbors = vp_tree.search_k_closest(&target_point, 5);
+    let k_closest_neighbors = vp_tree.querry(&target_point, Querry::k_nearest_neighbors(5));
     let duration = start.elapsed();
-    println!("Time taken to search 5 closest neighbors: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, k_baseline_duration.as_secs_f64() / duration.as_secs_f64(), k_closest_neighbors.count());
+    println!("Time taken to search 5 closest neighbors: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, k_baseline_duration.as_secs_f64() / duration.as_secs_f64(), k_closest_neighbors.len());
 
+    
     let start = std::time::Instant::now();
-    let in_radius = vp_tree.search_in_radius(&target_point, 2.0);
+    let in_radius = vp_tree.querry(&target_point, Querry::neighbors_within_radius(2.0));
     let duration = start.elapsed();
-    println!("Time taken to search points within radius 2.0: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, radius_baseline_duration.as_secs_f64() / duration.as_secs_f64(), in_radius.count());
+    println!("Time taken to search points within radius 2.0: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, radius_baseline_duration.as_secs_f64() / duration.as_secs_f64(), in_radius.len());
 }
 
 fn find_nearest_neighbor_linear<'a>(points: &'a Vec<Point>, target: &Point) -> Option<&'a Point> {

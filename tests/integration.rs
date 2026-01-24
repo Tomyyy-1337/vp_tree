@@ -3,7 +3,7 @@
 mod tests {
     use std::collections::BinaryHeap;
 
-    use vp_tree::{Distance, VpTree};
+    use vp_tree::{Distance, Querry, VpTree};
 
     #[test]
     fn test_nn() {
@@ -29,7 +29,7 @@ mod tests {
         let vp_tree = VpTree::new(points);
 
         let target = TestPoint { value: 3.4 };
-        let nearest = vp_tree.search_nearest_neighbor(&target).unwrap();
+        let nearest = vp_tree.nearest_neighbor(&target).unwrap();
 
         assert_eq!(nearest.value, 3.0);
     }
@@ -58,11 +58,17 @@ mod tests {
         let vp_tree = VpTree::new(points);
 
         let target = TestPoint { value: 3.4 };
-        let nearest = vp_tree.search_k_closest_sorted(&target, 2).collect::<Vec<_>>();
+        let nearest = vp_tree.querry(&target, vp_tree::Querry::k_nearest_neighbors(2).sorted());
 
         assert_eq!(nearest.len(), 2);
         assert_eq!(nearest[0].value, 3.0);
         assert_eq!(nearest[1].value, 4.0);
+
+        let nearest_exclusive = vp_tree.querry(&target,Querry::k_nearest_neighbors(2).exclusive().sorted());
+
+        assert_eq!(nearest_exclusive.len(), 2);
+        assert_eq!(nearest_exclusive[0].value, 3.0);
+        assert_eq!(nearest_exclusive[1].value, 4.0);
     }
 
     #[test]
@@ -80,7 +86,7 @@ mod tests {
         let vp_tree = VpTree::new(points);
 
         let target = TestPoint { value: 3.5 };
-        let nearest = vp_tree.search_k_closest_sorted(&target, 2).collect::<Vec<_>>();
+        let nearest = vp_tree.querry(&target, vp_tree::Querry::k_nearest_neighbors(1));
         assert_eq!(nearest.len(), 0);
     }
 
@@ -111,17 +117,47 @@ mod tests {
             let vp_tree = VpTree::new(points.clone());
             
             let target = TestPoint { x: 500.0, y: 500.0 };
-            let nearest = vp_tree.search_k_closest_sorted(&target, 10).collect::<Vec<_>>();
+            let nearest = vp_tree.querry(&target, Querry::k_nearest_neighbors(10).sorted());
             
             let baseline_nearest = baseline_linear_search(&points, &target, 10);
             
             assert_eq!(nearest, baseline_nearest);
 
             let baseline_nn = baseline_linear_search(&points, &target, 1);
-            let nn = vp_tree.search_nearest_neighbor(&target).unwrap();
+            let nn = vp_tree.nearest_neighbor(&target).unwrap();
             assert_eq!(nn, baseline_nn[0]);
         }
     
+    }
+
+    #[test]
+    fn tets_distinct_nn() {
+        #[derive(Debug, Clone, PartialEq)]
+        struct TestPoint {
+            value: f64,
+        }
+        impl Distance<TestPoint> for TestPoint {
+            fn distance(&self, other: &TestPoint) -> f64 {
+                (self.value - other.value).abs()
+            }
+        }
+
+        let points = vec![
+            TestPoint { value: 2.0 },
+            TestPoint { value: 2.0 },
+            TestPoint { value: 3.0 },
+            TestPoint { value: 4.0 },
+        ];
+
+        let vp_tree = VpTree::new(points);
+
+        let target = TestPoint { value: 2.0 };
+        let nearest = vp_tree.nearest_neighbor_exclusive(&target).unwrap();
+
+        assert_eq!(nearest.value, 3.0);
+
+        let nearest = vp_tree.nearest_neighbor(&target).unwrap();
+        assert_eq!(nearest.value, 2.0);
     }
 
     #[test]
@@ -144,7 +180,7 @@ mod tests {
             let vp_tree = VpTree::new(points.clone());
             
             let target = TestPoint { value: 500.0 };
-            let nearest = vp_tree.search_k_closest_sorted(&target, 10).collect::<Vec<_>>();
+            let nearest = vp_tree.querry(&target, Querry::k_nearest_neighbors(10).sorted());
             
             let baseline_nearest = baseline_linear_search(&points, &target, 10);
             
@@ -173,7 +209,10 @@ mod tests {
 
         let target = TestPoint { value: 500.0 };
         let radius = 10.0;
-        let results: Vec<_> = vp_tree.search_in_radius_sorted(&target, radius).collect();
+        let results: Vec<_> = vp_tree.querry(
+            &target,
+            Querry::neighbors_within_radius(radius).sorted(),
+        );
 
         let expected: Vec<_> = points
             .iter()
