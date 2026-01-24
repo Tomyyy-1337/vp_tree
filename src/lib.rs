@@ -110,7 +110,8 @@
 mod heap_item;
 mod distance;
 mod vp_tree;
+mod querry;
 
 pub use distance::Distance;
 pub use vp_tree::VpTree;
-pub use vp_tree::Querry;
+pub use querry::Querry;
