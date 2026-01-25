@@ -91,7 +91,7 @@ impl<T: Distance<T>> VpTree<T> {
     }
 
     fn build_from_points(items: &mut[T], offset: usize) -> Option<Node> {
-        match Self::build_from_points_base(items, offset, 1) {
+        match Self::build_from_points_base(items, offset) {
             BuildResult::Node(node) => node,
             BuildResult::Recursion { offset, threashold, left_slice, right_slice, .. } => {
                 Some(Node {
@@ -108,9 +108,9 @@ impl<T: Distance<T>> VpTree<T> {
     where 
         T: Send,
     {
-        match Self::build_from_points_base(items, offset, threads) {
+        match Self::build_from_points_base(items, offset) {
             BuildResult::Node(node) => node,
-            BuildResult::Recursion { offset, threads, threashold, left_slice, right_slice } => {
+            BuildResult::Recursion { offset, threashold, left_slice, right_slice } => {
                 if threads <= 1 {
                     return Some(Node {
                         index: offset,
@@ -137,7 +137,7 @@ impl<T: Distance<T>> VpTree<T> {
         }
     }
 
-    fn build_from_points_base(items: &mut[T], offset: usize, threads: usize) -> BuildResult<'_, T> {
+    fn build_from_points_base(items: &mut[T], offset: usize) -> BuildResult<'_, T> {
         let upper = items.len();
         if upper == 0 {
             return BuildResult::Node(None);
@@ -169,7 +169,6 @@ impl<T: Distance<T>> VpTree<T> {
 
         BuildResult::Recursion {
             offset,
-            threads,
             threashold,
             left_slice,
             right_slice,
@@ -260,7 +259,6 @@ enum BuildResult<'a, T> {
     Node(Option<Node>), 
     Recursion{
         offset: usize,
-        threads: usize,
         threashold: f64,
         left_slice: &'a mut [T],
         right_slice: &'a mut [T],
