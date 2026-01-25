@@ -30,8 +30,9 @@ fn main() {
 
     let target_point = Point { x: 500.0, y: 500.0, z: 500.0 };
     
-    let vp_tree = VpTree::new(random_points);
-
+    // Build VpTree using 4 threads
+    let vp_tree = VpTree::new_parallel(random_points, 4);
+    
     let _nearest_neighbor = vp_tree.nearest_neighbor(&target_point);
     let _k_closest_neighbors = vp_tree.querry(&target_point, Querry::k_nearest_neighbors(5));
     let _in_radius = vp_tree.querry(&target_point, Querry::neighbors_within_radius(100.0));

@@ -157,16 +157,16 @@ impl<T: Distance<T>> VpTree<T> {
         items.swap(0, i);
         let (random_element, slice) = items.split_first_mut().unwrap();
         
-        let median = num_items / 2;
+        let median = num_items / 2 - 1;
         
-        let (_, median_item, _) = slice.select_nth_unstable_by(median - 1, |a, b| {
+        let (_, median_item, _) = slice.select_nth_unstable_by(median, |a, b| {
             let dist_a = random_element.distance_heuristic(a);
             let dist_b = random_element.distance_heuristic(b);
             dist_a.partial_cmp(&dist_b).unwrap()
         });
 
         let threashold = random_element.distance(median_item);
-        let (left_slice, right_slice) = items[1..].split_at_mut(median - 1);
+        let (left_slice, right_slice) = slice.split_at_mut(median);
 
         BuildResult::Recursion {
             offset,
