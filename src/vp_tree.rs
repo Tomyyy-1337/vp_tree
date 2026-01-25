@@ -93,7 +93,7 @@ impl<T: Distance<T>> VpTree<T> {
     fn build_from_points(items: &mut[T], offset: usize) -> Option<Node> {
         match Self::build_from_points_base(items, offset) {
             BuildResult::Node(node) => node,
-            BuildResult::Recursion { offset, threashold, left_slice, right_slice, .. } => {
+            BuildResult::Recursion { offset, threashold, left_slice, right_slice } => {
                 Some(Node {
                     index: offset,
                     threshold: threashold,
@@ -138,12 +138,13 @@ impl<T: Distance<T>> VpTree<T> {
     }
 
     fn build_from_points_base(items: &mut[T], offset: usize) -> BuildResult<'_, T> {
-        let upper = items.len();
-        if upper == 0 {
+        let num_items = items.len();
+        
+        if num_items == 0 {
             return BuildResult::Node(None);
         }
 
-        if upper == 1 {
+        if num_items == 1 {
             return BuildResult::Node(Some(Node {
                 index: offset,
                 threshold: 0.0,
@@ -152,11 +153,11 @@ impl<T: Distance<T>> VpTree<T> {
             }));
         }
         
-        let i = fastrand::usize(0..upper);
+        let i = fastrand::usize(..num_items);
         items.swap(0, i);
-        let (random_element, slice) = items[0..upper].split_first_mut().unwrap();
+        let (random_element, slice) = items.split_first_mut().unwrap();
         
-        let median = upper / 2;
+        let median = num_items / 2;
         
         let (_, median_item, _) = slice.select_nth_unstable_by(median - 1, |a, b| {
             let dist_a = random_element.distance_heuristic(a);
@@ -165,7 +166,7 @@ impl<T: Distance<T>> VpTree<T> {
         });
 
         let threashold = random_element.distance(median_item);
-        let (left_slice, right_slice) = items[1..upper].split_at_mut(median - 1);
+        let (left_slice, right_slice) = items[1..].split_at_mut(median - 1);
 
         BuildResult::Recursion {
             offset,
