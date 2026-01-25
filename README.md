@@ -5,8 +5,9 @@ k-nearest neighbors, and radius searches in metric spaces with arbitrary dimensi
 
 The implementation is generic over any type that implements the `Distance` trait.
 The `VpTree` requires stored elements to implement the `Distance` in relation to themselves. 
-For faster tree construction, it is recommended to also implement the `Distance::distance_heuristic` method (for example squared distance to avoid square root calculations)
-to accelerate tree construction.
+For faster tree construction, it is recommended to also implement the `Distance::distance_heuristic` method (for example squared distance to avoid square root calculations) to accelerate tree construction.
+
+For large datasets, the tree can be constructed using multiple threads.
 
 For searching in the `VpTree`, either the stored type or a different type that implements the `Distance` trait in relation to the stored type can be used.
 

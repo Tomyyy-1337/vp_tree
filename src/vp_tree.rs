@@ -112,7 +112,12 @@ impl<T: Distance<T>> VpTree<T> {
             BuildResult::Node(node) => node,
             BuildResult::Recursion { offset, threads, threashold, left_slice, right_slice } => {
                 if threads <= 1 {
-                    return Self::build_from_points(left_slice, offset + 1);
+                    return Some(Node {
+                        index: offset,
+                        threshold: threashold,
+                        left: Self::build_from_points(left_slice, offset + 1).map(Box::new),
+                        right: Self::build_from_points(right_slice, offset + left_slice.len() + 1).map(Box::new),
+                    });
                 } 
                 let (left, right) = scope(|s| {
                     let right_offset = offset + left_slice.len() + 1;
