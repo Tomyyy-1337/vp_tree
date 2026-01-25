@@ -108,19 +108,14 @@ impl<T: Distance<T>> VpTree<T> {
     where 
         T: Send,
     {
+        if threads <= 1 {
+            return Self::build_from_points(items, offset)
+        } 
         match Self::build_from_points_base(items, offset) {
             BuildResult::Node(node) => node,
             BuildResult::Recursion { offset, threashold, left_slice, right_slice } => {
-                if threads <= 1 {
-                    return Some(Node {
-                        index: offset,
-                        threshold: threashold,
-                        left: Self::build_from_points(left_slice, offset + 1).map(Box::new),
-                        right: Self::build_from_points(right_slice, offset + left_slice.len() + 1).map(Box::new),
-                    });
-                } 
+                let right_offset = offset + left_slice.len() + 1;
                 let (left, right) = scope(|s| {
-                    let right_offset = offset + left_slice.len() + 1;
                     let left_handle = s.spawn(|| {
                         Self::build_from_points_par(left_slice, offset + 1, threads / 2 + threads % 2)
                     });
@@ -168,12 +163,7 @@ impl<T: Distance<T>> VpTree<T> {
         let threashold = random_element.distance(median_item);
         let (left_slice, right_slice) = slice.split_at_mut(median);
 
-        BuildResult::Recursion {
-            offset,
-            threashold,
-            left_slice,
-            right_slice,
-        }
+        BuildResult::Recursion { offset, threashold, left_slice, right_slice }
     }
 
     fn search_rec<U: Distance<T>>(
