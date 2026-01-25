@@ -1,8 +1,8 @@
-use std::{collections::BinaryHeap, thread::sleep};
+use std::collections::BinaryHeap;
 
 use vp_tree::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Point {
     x: f64,
     y: f64,
@@ -51,13 +51,15 @@ fn main() {
     
     println!("\nVpTree search:");
 
-    let start = std::time::Instant::now();
-    let vp_tree = vp_tree::VpTree::new_parallel(random_points, 4);
-    let duration = start.elapsed();
-    println!("Time taken to build VpTree with {} points on 4 threads: {:?}", num_points, duration);
+    let random_points_clone = random_points.clone();
 
     let start = std::time::Instant::now();
-    let vp_tree = vp_tree::VpTree::new(vp_tree.into_items());
+    let vp_tree = vp_tree::VpTree::new_parallel(random_points, 8);
+    let duration = start.elapsed();
+    println!("Time taken to build VpTree with {} points on 8 threads: {:?}", num_points, duration);
+
+    let start = std::time::Instant::now();
+    let _vp_tree = vp_tree::VpTree::new(random_points_clone);
     let duration = start.elapsed();
     println!("Time taken to build VpTree with {} points on single thread: {:?}", num_points, duration);
 

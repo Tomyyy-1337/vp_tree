@@ -22,17 +22,20 @@ struct Node {
     right: Option<Box<Node>>,
 }
 
-impl<T: Distance<T> + Send + Sync> VpTree<T> {
+impl<T: Distance<T>> VpTree<T> {
     /// Constructs a new [`VpTree`] from a [`Vec`] of items. The items are consumed and stored within the tree. 
     /// This constructor uses a single thread. For parallel construction, use [`Self::new_parallel`].
     pub fn new(mut items: Vec<T>) -> Self {
-        let root = Self::build_from_points(&mut items, 0, 1);
+        let root = Self::build_from_points(&mut items, 0);
         VpTree { items, root }
     }   
 
     /// Constructs a new [`VpTree`] from a [`Vec`] of items using multiple threads. The items are consumed and stored within the tree.
-    pub fn new_parallel(mut items: Vec<T>, threads: usize) -> Self {
-        let root = Self::build_from_points(&mut items, 0, threads);
+    pub fn new_parallel(mut items: Vec<T>, threads: usize) -> Self 
+    where 
+        T: Send,
+    {
+        let root = Self::build_from_points_par(&mut items, 0, threads);
         VpTree { items, root }
     }
 
@@ -77,7 +80,7 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
         best.map(|item| &self.items[item.index])
     }
 
-    /// Returns a reference to the items stored in the VpTree. The items are stored in an arbitrary order.
+    /// Returns a reference to all items stored in the VpTree. The items are stored in an arbitrary order.
     pub fn items(&self) -> &[T] {
         &self.items
     }
@@ -87,25 +90,67 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
         self.items
     }
 
-    fn build_from_points(items: &mut[T], offset: usize, threads: usize) -> Option<Node> {
+    fn build_from_points(items: &mut[T], offset: usize) -> Option<Node> {
+        match Self::build_from_points_base(items, offset, 1) {
+            BuildResult::Node(node) => node,
+            BuildResult::Recursion { offset, threashold, left_slice, right_slice, .. } => {
+                Some(Node {
+                    index: offset,
+                    threshold: threashold,
+                    left: Self::build_from_points(left_slice, offset + 1).map(Box::new),
+                    right: Self::build_from_points(right_slice, offset + left_slice.len() + 1).map(Box::new),
+                })
+            }
+        }
+    }
+
+    fn build_from_points_par(items: &mut[T], offset: usize, threads: usize) -> Option<Node> 
+    where 
+        T: Send,
+    {
+        match Self::build_from_points_base(items, offset, threads) {
+            BuildResult::Node(node) => node,
+            BuildResult::Recursion { offset, threads, threashold, left_slice, right_slice } => {
+                if threads <= 1 {
+                    return Self::build_from_points(left_slice, offset + 1);
+                } 
+                let (left, right) = scope(|s| {
+                    let right_offset = offset + left_slice.len() + 1;
+                    let left_handle = s.spawn(|| {
+                        Self::build_from_points_par(left_slice, offset + 1, threads / 2 + threads % 2)
+                    });
+                    let right = Self::build_from_points_par(right_slice, right_offset, threads / 2);
+                    (left_handle.join().unwrap(), right)
+                });
+                Some(Node {
+                    index: offset,
+                    threshold: threashold,
+                    left: left.map(Box::new),
+                    right: right.map(Box::new),
+                })
+            }
+        }
+    }
+
+    fn build_from_points_base(items: &mut[T], offset: usize, threads: usize) -> BuildResult<'_, T> {
         let upper = items.len();
         if upper == 0 {
-            return None;
+            return BuildResult::Node(None);
         }
 
         if upper == 1 {
-            return Some(Node {
+            return BuildResult::Node(Some(Node {
                 index: offset,
                 threshold: 0.0,
                 left: None,
                 right: None,
-            });
+            }));
         }
         
         let i = fastrand::usize(0..upper);
         items.swap(0, i);
-        
         let (random_element, slice) = items[0..upper].split_first_mut().unwrap();
+        
         let median = upper / 2;
         
         let (_, median_item, _) = slice.select_nth_unstable_by(median - 1, |a, b| {
@@ -114,31 +159,16 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
             dist_a.partial_cmp(&dist_b).unwrap()
         });
 
-        let threshold = random_element.distance(median_item);
-        
+        let threashold = random_element.distance(median_item);
         let (left_slice, right_slice) = items[1..upper].split_at_mut(median - 1);
-        
-        let (left, right) = if threads <= 1 {
-            let left = Self::build_from_points(left_slice, offset + 1, 1).map(Box::new);	
-            let right = Self::build_from_points(right_slice, offset + left_slice.len() + 1, 1).map(Box::new);	
-            (left, right)
-        } else {
-            scope(|s| {
-                let left_len = left_slice.len();
-                let left_handle = s.spawn(|| {
-                    Self::build_from_points(left_slice, offset + 1, threads / 2 + threads % 2).map(Box::new)
-                });
-                let right = Self::build_from_points(right_slice, offset + left_len + 1, threads / 2).map(Box::new);
-                (left_handle.join().unwrap(), right)
-            })
-        };
 
-        Some(Node {
-            index: offset,
-            threshold,
-            left: left,
-            right: right,
-        })
+        BuildResult::Recursion {
+            offset,
+            threads,
+            threashold,
+            left_slice,
+            right_slice,
+        }
     }
 
     fn search_rec<U: Distance<T>>(
@@ -214,9 +244,20 @@ impl<T: Distance<T> + Send + Sync> VpTree<T> {
     }
 }
 
-impl<T: Distance<T> + Send + Sync> FromIterator<T> for VpTree<T> {
+impl<T: Distance<T>> FromIterator<T> for VpTree<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let items: Vec<T> = iter.into_iter().collect();
         VpTree::new(items)
+    }
+}
+
+enum BuildResult<'a, T> {
+    Node(Option<Node>), 
+    Recursion{
+        offset: usize,
+        threads: usize,
+        threashold: f64,
+        left_slice: &'a mut [T],
+        right_slice: &'a mut [T],
     }
 }
