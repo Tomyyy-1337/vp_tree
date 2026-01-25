@@ -17,7 +17,7 @@ pub struct VpTree<T> {
 #[derive(Debug, Clone, PartialEq)]
 struct Node {
     index: usize,
-    threshold: f64,
+    threashold: f64,
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
 }
@@ -96,7 +96,7 @@ impl<T: Distance<T>> VpTree<T> {
             BuildResult::Recursion { offset, threashold, left_slice, right_slice } => {
                 Some(Node {
                     index: offset,
-                    threshold: threashold,
+                    threashold,
                     left: Self::build_from_points(left_slice, offset + 1).map(Box::new),
                     right: Self::build_from_points(right_slice, offset + left_slice.len() + 1).map(Box::new),
                 })
@@ -117,17 +117,12 @@ impl<T: Distance<T>> VpTree<T> {
                 let right_offset = offset + left_slice.len() + 1;
                 let (left, right) = scope(|s| {
                     let left_handle = s.spawn(|| {
-                        Self::build_from_points_par(left_slice, offset + 1, threads / 2 + threads % 2)
+                        Self::build_from_points_par(left_slice, offset + 1, threads / 2 + threads % 2).map(Box::new)
                     });
-                    let right = Self::build_from_points_par(right_slice, right_offset, threads / 2);
+                    let right = Self::build_from_points_par(right_slice, right_offset, threads / 2).map(Box::new);
                     (left_handle.join().unwrap(), right)
                 });
-                Some(Node {
-                    index: offset,
-                    threshold: threashold,
-                    left: left.map(Box::new),
-                    right: right.map(Box::new),
-                })
+                Some(Node { index: offset, threashold, left, right, })
             }
         }
     }
@@ -142,7 +137,7 @@ impl<T: Distance<T>> VpTree<T> {
         if num_items == 1 {
             return BuildResult::Node(Some(Node {
                 index: offset,
-                threshold: 0.0,
+                threashold: 0.0,
                 left: None,
                 right: None,
             }));
@@ -175,7 +170,7 @@ impl<T: Distance<T>> VpTree<T> {
         tau: &mut f64,
         exclusive: bool
     ) {
-        if let Some(Node { index, threshold, left, right }) = node {
+        if let Some(Node { index, threashold, left, right }) = node {
             let dist = target.distance(&self.items[*index]);
 
             if dist <= *tau && (!exclusive || dist > 0.0) {
@@ -192,14 +187,14 @@ impl<T: Distance<T>> VpTree<T> {
                 return;
             }
 
-            if dist <= *threshold {
+            if dist <= *threashold {
                 self.search_rec(left.as_deref(), target, k, heap, tau, exclusive);
-                if dist + *tau >= *threshold {
+                if dist + *tau >= *threashold {
                     self.search_rec(right.as_deref(), target, k, heap, tau, exclusive);
                 }
             } else {
                 self.search_rec(right.as_deref(), target, k, heap, tau, exclusive);
-                if dist - *tau <= *threshold {
+                if dist - *tau <= *threashold {
                     self.search_rec(left.as_deref(), target, k, heap, tau, exclusive);
                 }
             }
@@ -213,7 +208,7 @@ impl<T: Distance<T>> VpTree<T> {
         best: &mut Option<HeapItem>,
         distinct: bool,
     ) {
-        if let Some(Node { index, threshold, left, right }) = node {
+        if let Some(Node { index, threashold, left, right }) = node {
             let dist = target.distance(&self.items[*index]);
 
             if (best.is_none() || dist < best.as_ref().unwrap().distance) && (!distinct || dist > 0.0) {
@@ -224,14 +219,14 @@ impl<T: Distance<T>> VpTree<T> {
                 return;
             }
 
-            if dist <= *threshold {
+            if dist <= *threashold {
                 self.search_nearest_rec(left.as_deref(), target, best, distinct);
-                if best.is_none() || dist + best.as_ref().unwrap().distance >= *threshold {
+                if best.is_none() || dist + best.as_ref().unwrap().distance >= *threashold {
                     self.search_nearest_rec(right.as_deref(), target, best, distinct);
                 }
             } else {
                 self.search_nearest_rec(right.as_deref(), target, best, distinct);
-                if best.is_none() || dist - best.as_ref().unwrap().distance <= *threshold {
+                if best.is_none() || dist - best.as_ref().unwrap().distance <= *threashold {
                     self.search_nearest_rec(left.as_deref(), target, best, distinct);
                 }
             }            
