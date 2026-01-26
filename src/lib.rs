@@ -109,7 +109,7 @@
 //! let radius_neighbors = vp_tree.querry(&search_point, Querry::neighbors_within_radius(1.0).sorted());
 //! assert_eq!(radius_neighbors[0].data, "C".to_string());
 //! ```
-mod heap_item;
+
 mod distance;
 mod vp_tree;
 mod querry;

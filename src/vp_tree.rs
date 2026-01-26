@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, collections::BinaryHeap, vec};
 
-use crate::{Distance, Querry, heap_item::HeapItem};
+use crate::{Distance, Querry};
 
 /// Vantage-Point Tree (VP-Tree) implementation for efficient nearest neighbor search and radius searches.
 /// Requires stored elements to implement the [`Distance`] trait to themselves.
@@ -245,5 +245,29 @@ impl<T: Distance<T>> FromIterator<T> for VpTree<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let items: Vec<T> = iter.into_iter().collect();
         VpTree::new(items)
+    }
+}
+
+pub struct HeapItem {
+    index: usize,
+    distance: f64,
+}
+
+impl PartialEq for HeapItem {
+    fn eq(&self, other: &Self) -> bool {
+        self.distance == other.distance
+    }
+}
+impl Eq for HeapItem {}
+
+impl PartialOrd for HeapItem {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for HeapItem {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.distance.partial_cmp(&other.distance).unwrap()
     }
 }
