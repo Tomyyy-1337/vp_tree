@@ -22,7 +22,6 @@ impl<T: Distance<T>> VpTree<T> {
     /// Constructs a new [`VpTree`] from a [`Vec`] of items. The items are consumed and stored within the tree. 
     /// This constructor uses a single thread. For parallel construction, use [`Self::new_parallel`].
     pub fn new(mut items: Vec<T>) -> Self {
-        assert!(items.len() < usize::MAX, "VpTree cannot store more than usize::MAX - 1 items.");
         let mut nodes = vec![0.0; items.len()];
         Self::build_from_points(&mut items, &mut nodes);
         VpTree { items, nodes }
@@ -33,7 +32,6 @@ impl<T: Distance<T>> VpTree<T> {
     where
         T: Send,
     {
-        assert!(items.len() < usize::MAX, "VpTree cannot store more than usize::MAX - 1 items.");
         let mut nodes = vec![0.0; items.len()];
         Self::build_from_points_par(&mut items, &mut nodes, threads);
         VpTree { items, nodes }
@@ -152,7 +150,7 @@ impl<T: Distance<T>> VpTree<T> {
         
         let (left_slice, right_slice) = slice.split_at_mut(median);
         let (left_nodes, right_nodes) = nodes[1..].split_at_mut(median);
-        
+
         Self::build_from_points(left_slice, left_nodes);
         Self::build_from_points(right_slice, right_nodes);
     }
