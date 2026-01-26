@@ -54,9 +54,9 @@ fn main() {
     let random_points_clone = random_points.clone();
 
     let start = std::time::Instant::now();
-    let vp_tree = vp_tree::VpTree::new_parallel(random_points, 8);
+    let vp_tree = vp_tree::VpTree::new_parallel(random_points, 16);
     let duration = start.elapsed();
-    println!("Time taken to build VpTree with {} points on 8 threads: {:?}", num_points, duration);
+    println!("Time taken to build VpTree with {} points on 16 threads: {:?}", num_points, duration);
 
     let start = std::time::Instant::now();
     let _vp_tree = vp_tree::VpTree::new(random_points_clone);
@@ -73,7 +73,6 @@ fn main() {
     let duration = start.elapsed();
     println!("Time taken to search 5 closest neighbors: {:?}, {:.2?} times faster than linear search. Result count: {}", duration, k_baseline_duration.as_secs_f64() / duration.as_secs_f64(), k_closest_neighbors.len());
 
-    
     let start = std::time::Instant::now();
     let in_radius = vp_tree.querry(&target_point, Querry::neighbors_within_radius(2.0));
     let duration = start.elapsed();
