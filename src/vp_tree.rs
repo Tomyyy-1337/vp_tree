@@ -8,62 +8,24 @@ use crate::{Distance, Querry, heap_item::HeapItem};
 /// 
 /// While constructing the tree takes longer than a naive linear search, nearest neighbor and radius searches are significantly faster 
 /// resulting in overall performance gains for multiple searches on the same dataset.
+/// 
+/// The tree takes 8 bytes of memory per stored element for the distance thresholds, plus the memory required to store the elements themselves.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VpTree<T> {
     items: Vec<T>,
-    root: OptionalUsize,
-    nodes: Vec<Node>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct Node {
-    threashold: f64,
-    left: OptionalUsize,
-    right: OptionalUsize,
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Node {
-            threashold: 0.0,
-            left: OptionalUsize::none(),
-            right: OptionalUsize::none(),
-        }
-    }
-}
-
-/// Used to represent an optional usize value without the overhead of `Option<usize>`.
-/// The value `usize::MAX` is used to represent `None`. 
-#[derive(Debug, Copy, Clone, PartialEq)]
-struct OptionalUsize {
-    value: usize,
-}
-
-impl OptionalUsize {
-    fn new_unchecked(value: usize) -> Self {
-        OptionalUsize { value }
-    }
-    
-    fn none() -> Self {
-        OptionalUsize { value: usize::MAX }
-    }
-
-    fn as_option(&self) -> Option<usize> {
-        match self.value {
-            usize::MAX => None,
-            v => Some(v),
-        }
-    }
+    nodes: Vec<f64>,
 }
 
 impl<T: Distance<T>> VpTree<T> {
+    const ROOT: usize = 0;
+
     /// Constructs a new [`VpTree`] from a [`Vec`] of items. The items are consumed and stored within the tree. 
     /// This constructor uses a single thread. For parallel construction, use [`Self::new_parallel`].
     pub fn new(mut items: Vec<T>) -> Self {
         assert!(items.len() < usize::MAX, "VpTree cannot store more than usize::MAX - 1 items.");
-        let mut nodes = vec![Node::default(); items.len()];
-        let root = Self::build_from_points(&mut items, 0, &mut nodes);
-        VpTree { items, root, nodes }
+        let mut nodes = vec![0.0; items.len()];
+        Self::build_from_points(&mut items, 0, &mut nodes);
+        VpTree { items, nodes }
     }   
 
     /// Constructs a new [`VpTree`] from a [`Vec`] of items using multiple threads. The items are consumed and stored within the tree.
@@ -72,9 +34,9 @@ impl<T: Distance<T>> VpTree<T> {
         T: Send,
     {
         assert!(items.len() < usize::MAX, "VpTree cannot store more than usize::MAX - 1 items.");
-        let mut nodes = vec![Node::default(); items.len()];
-        let root = Self::build_from_points_par(&mut items, 0, &mut nodes, threads);
-        VpTree { items, root, nodes }
+        let mut nodes = vec![0.0; items.len()];
+        Self::build_from_points_par(&mut items, 0, &mut nodes, threads);
+        VpTree { items, nodes }
     }
 
     /// Performs a query on the VpTree using the specified target and query parameters.
@@ -88,8 +50,7 @@ impl<T: Distance<T>> VpTree<T> {
         let mut heap = BinaryHeap::new();
         let mut tau = querry.max_distance;
 
-        let root = self.root;
-        self.search_rec(root, target, querry.max_items, &mut heap, &mut tau, querry.exclusive);
+        self.search_rec(Self::ROOT, self.items.len(), target, querry.max_items, &mut heap, &mut tau, querry.exclusive);
 
         if querry.sorted {
             heap.into_sorted_vec()
@@ -108,7 +69,7 @@ impl<T: Distance<T>> VpTree<T> {
     pub fn nearest_neighbor<U: Distance<T>>(&self, target: &U) -> Option<&T> {
         let mut best_index = None;
         let mut best_distance = f64::INFINITY;
-        self.search_nearest_rec(self.root, target, &mut best_index, &mut best_distance, false);
+        self.search_nearest_rec(Self::ROOT, self.items.len(), target, &mut best_index, &mut best_distance, false);
         best_index.map(|index| &self.items[index])
     }
 
@@ -117,7 +78,7 @@ impl<T: Distance<T>> VpTree<T> {
     pub fn nearest_neighbor_exclusive<U: Distance<T>>(&self, target: &U) -> Option<&T> {
         let mut best_index = None;
         let mut best_distance = f64::INFINITY;
-        self.search_nearest_rec(self.root, target, &mut best_index, &mut best_distance, true);
+        self.search_nearest_rec(Self::ROOT, self.items.len(), target, &mut best_index, &mut best_distance, true);
         best_index.map(|index| &self.items[index])
     }
 
@@ -131,29 +92,31 @@ impl<T: Distance<T>> VpTree<T> {
         self.items
     }
 
-    fn build_from_points_par(items: &mut[T], offset: usize, nodes: &mut [Node], threads: usize) -> OptionalUsize
+    fn build_from_points_par(items: &mut[T], offset: usize, nodes: &mut [f64], threads: usize)
     where 
         T: Send,
     {
         if threads <= 1 {
-            return Self::build_from_points(items, offset, nodes);
+            Self::build_from_points(items, offset, nodes);
+            return;
         }
         
         let num_items = items.len();    
 
-        if num_items == 0 {
-            return OptionalUsize::none();
+        if num_items == 1 {
+            return;
         }
 
         if num_items == 1 {
-            return OptionalUsize::new_unchecked(offset)
+            nodes[0] = 0.0;
+            return;
         }
 
         let i = fastrand::usize(..num_items);
         items.swap(0, i);
         let (random_element, slice) = items.split_first_mut().unwrap();
         
-        let median = num_items / 2 - 1;
+        let median = (num_items - 1) / 2;
 
         let (_, median_item, _) = slice.select_nth_unstable_by(median, |a, b| {
             let dist_a = random_element.distance_heuristic(a);
@@ -166,36 +129,33 @@ impl<T: Distance<T>> VpTree<T> {
         let (first_node, rest_nodes) = nodes.split_first_mut().unwrap();
         let (left_nodes, right_nodes) = rest_nodes.split_at_mut(median);
 
-        first_node.threashold = threashold;
+        *first_node = threashold;
         let right_offset = offset + left_slice.len() + 1;
-        let (left_index, right_index) = std::thread::scope(|s| {
-            let left_handle = s.spawn(|| {
+        std::thread::scope(|s| {
+            s.spawn(|| {
                 Self::build_from_points_par(left_slice, offset + 1, left_nodes, threads / 2 + threads % 2)
             });
-            let right_index = Self::build_from_points_par(right_slice, right_offset, right_nodes, threads / 2);
-            (left_handle.join().unwrap(), right_index)
+            Self::build_from_points_par(right_slice, right_offset, right_nodes, threads / 2);
         });
-        first_node.left = left_index;
-        first_node.right = right_index;
-        OptionalUsize::new_unchecked(offset)
     }
 
-    fn build_from_points(items: &mut[T], offset: usize, nodes: &mut [Node]) -> OptionalUsize {
+    fn build_from_points(items: &mut[T], offset: usize, nodes: &mut [f64]) {
         let num_items = items.len();    
 
         if num_items == 0 {
-            return OptionalUsize::none();
+            return;
         }
 
         if num_items == 1 {
-            return OptionalUsize::new_unchecked(offset)
+            nodes[0] = 0.0;
+            return;
         }
 
         let i = fastrand::usize(..num_items);
         items.swap(0, i);
         let (random_element, slice) = items.split_first_mut().unwrap();
         
-        let median = num_items / 2 - 1;
+        let median = (num_items - 1) / 2;
 
         let (_, median_item, _) = slice.select_nth_unstable_by(median, |a, b| {
             let dist_a = random_element.distance_heuristic(a);
@@ -208,78 +168,92 @@ impl<T: Distance<T>> VpTree<T> {
         let (first_node, rest_nodes) = nodes.split_first_mut().unwrap();
         let (left_nodes, right_nodes) = rest_nodes.split_at_mut(median);
 
-        first_node.threashold = threashold;
-        let left_index = Self::build_from_points(left_slice, offset + 1, left_nodes);
-        let right_index = Self::build_from_points(right_slice, offset + left_slice.len() + 1, right_nodes);
-        first_node.left = left_index;
-        first_node.right = right_index;
-        OptionalUsize::new_unchecked(offset)
+        *first_node = threashold;
+        Self::build_from_points(left_slice, offset + 1, left_nodes);
+        Self::build_from_points(right_slice, offset + left_slice.len() + 1, right_nodes);
     }
 
     fn search_rec<U: Distance<T>>(
         &self,
-        node: OptionalUsize,
+        node_index: usize,
+        len: usize,
         target: &U,
         k: usize,
         heap: &mut BinaryHeap<HeapItem>,
         tau: &mut f64,
         exclusive: bool
     ) {
-        if let Some(node_index) = node.as_option() {
-            let Node { threashold, left, right } = &self.nodes[node_index];
-            let dist = target.distance(&self.items[node_index]);
+        if len == 0 {
+            return;
+        }
 
-            if dist <= *tau && (!exclusive || dist > 0.0) {
-                if heap.len() == k {
-                    heap.pop();
-                }
-                heap.push(HeapItem { index: node_index, distance: dist });
-                if heap.len() == k {
-                    *tau = heap.peek().unwrap().distance;
-                }
+        let threashold = &self.nodes[node_index];
+        let dist = target.distance(&self.items[node_index]);
+
+        if dist <= *tau && (!exclusive || dist > 0.0) {
+            if heap.len() == k {
+                heap.pop();
             }
-
-            if dist <= *threashold {
-                self.search_rec(*left, target, k, heap, tau, exclusive);
-                if dist + *tau >= *threashold {
-                    self.search_rec(*right, target, k, heap, tau, exclusive);
-                }
-            } else {
-                self.search_rec(*right, target, k, heap, tau, exclusive);
-                if dist - *tau <= *threashold {
-                    self.search_rec(*left, target, k, heap, tau, exclusive);
-                }
+            heap.push(HeapItem { index: node_index, distance: dist });
+            if heap.len() == k {
+                *tau = heap.peek().unwrap().distance;
             }
         }
+
+        let left = node_index + 1;
+        let right = node_index + 1 + (len - 1) / 2;
+        let len_left = (len - 1) / 2;
+        let right_len = len - 1 - len_left;
+
+        if dist <= *threashold {
+            self.search_rec(left, len_left, target, k, heap, tau, exclusive);
+            if dist + *tau >= *threashold {
+                self.search_rec(right, right_len, target, k, heap, tau, exclusive);
+            }
+        } else {
+            self.search_rec(right, right_len, target, k, heap, tau, exclusive);
+            if dist - *tau <= *threashold {
+                self.search_rec(left, len_left, target, k, heap, tau, exclusive);
+            }
+        }
+        
     }
 
     fn search_nearest_rec<U: Distance<T>>(
         &self,
-        node: OptionalUsize,
+        node_index: usize,
+        len: usize,
         target: &U,
         best_index: &mut Option<usize>,
         best_distance: &mut f64,
         exclusive: bool
     ) {
-        if let Some(node_index) = node.as_option() {
-            let Node { threashold, left, right } = &self.nodes[node_index];
-            let dist = target.distance(&self.items[node_index]);
+        if len == 0 {
+            return;
+        }
 
-            if dist < *best_distance && (!exclusive || dist > 0.0) {
-                *best_distance = dist;
-                *best_index = Some(node_index);
+        let threashold = &self.nodes[node_index];
+        let dist = target.distance(&self.items[node_index]);
+
+        if dist < *best_distance && (!exclusive || dist > 0.0) {
+            *best_distance = dist;
+            *best_index = Some(node_index);
+        }
+
+        let left = node_index + 1;
+        let right = node_index + 1 + (len - 1) / 2;
+        let len_left = (len - 1) / 2;
+        let right_len = len - 1 - len_left;
+
+        if dist <= *threashold {
+            self.search_nearest_rec(left, len_left, target, best_index, best_distance, exclusive);
+            if dist + *best_distance >= *threashold {
+                self.search_nearest_rec(right, right_len, target, best_index, best_distance, exclusive);
             }
-
-            if dist <= *threashold {
-                self.search_nearest_rec(*left, target, best_index, best_distance, exclusive);
-                if dist + *best_distance >= *threashold {
-                    self.search_nearest_rec(*right, target, best_index, best_distance, exclusive);
-                }
-            } else {
-                self.search_nearest_rec(*right, target, best_index, best_distance, exclusive);
-                if dist - *best_distance <= *threashold {
-                    self.search_nearest_rec(*left, target, best_index, best_distance, exclusive);
-                }
+        } else {
+            self.search_nearest_rec(right, right_len, target, best_index, best_distance, exclusive);
+            if dist - *best_distance <= *threashold {
+                self.search_nearest_rec(left, len_left, target, best_index, best_distance, exclusive);
             }
         }
     }
