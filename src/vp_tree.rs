@@ -24,7 +24,7 @@ impl<T: Distance<T>> VpTree<T> {
     pub fn new(mut items: Vec<T>) -> Self {
         assert!(items.len() < usize::MAX, "VpTree cannot store more than usize::MAX - 1 items.");
         let mut nodes = vec![0.0; items.len()];
-        Self::build_from_points(&mut items, 0, &mut nodes);
+        Self::build_from_points(&mut items, &mut nodes);
         VpTree { items, nodes }
     }   
 
@@ -35,7 +35,7 @@ impl<T: Distance<T>> VpTree<T> {
     {
         assert!(items.len() < usize::MAX, "VpTree cannot store more than usize::MAX - 1 items.");
         let mut nodes = vec![0.0; items.len()];
-        Self::build_from_points_par(&mut items, 0, &mut nodes, threads);
+        Self::build_from_points_par(&mut items, &mut nodes, threads);
         VpTree { items, nodes }
     }
 
@@ -92,12 +92,12 @@ impl<T: Distance<T>> VpTree<T> {
         self.items
     }
 
-    fn build_from_points_par(items: &mut[T], offset: usize, nodes: &mut [f64], threads: usize)
+    fn build_from_points_par(items: &mut[T], nodes: &mut [f64], threads: usize)
     where 
         T: Send,
     {
         if threads <= 1 {
-            Self::build_from_points(items, offset, nodes);
+            Self::build_from_points(items, nodes);
             return;
         }
         
@@ -130,16 +130,15 @@ impl<T: Distance<T>> VpTree<T> {
         let (left_nodes, right_nodes) = rest_nodes.split_at_mut(median);
 
         *first_node = threashold;
-        let right_offset = offset + left_slice.len() + 1;
         std::thread::scope(|s| {
             s.spawn(|| {
-                Self::build_from_points_par(left_slice, offset + 1, left_nodes, threads / 2 + threads % 2)
+                Self::build_from_points_par(left_slice, left_nodes, threads / 2 + threads % 2)
             });
-            Self::build_from_points_par(right_slice, right_offset, right_nodes, threads / 2);
+            Self::build_from_points_par(right_slice, right_nodes, threads / 2);
         });
     }
 
-    fn build_from_points(items: &mut[T], offset: usize, nodes: &mut [f64]) {
+    fn build_from_points(items: &mut[T], nodes: &mut [f64]) {
         let num_items = items.len();    
 
         if num_items == 0 {
@@ -169,8 +168,8 @@ impl<T: Distance<T>> VpTree<T> {
         let (left_nodes, right_nodes) = rest_nodes.split_at_mut(median);
 
         *first_node = threashold;
-        Self::build_from_points(left_slice, offset + 1, left_nodes);
-        Self::build_from_points(right_slice, offset + left_slice.len() + 1, right_nodes);
+        Self::build_from_points(left_slice, left_nodes);
+        Self::build_from_points(right_slice, right_nodes);
     }
 
     fn search_rec<U: Distance<T>>(
