@@ -28,6 +28,7 @@ impl<T: Distance<T>> VpTree<T> {
     }   
 
     /// Constructs a new [`VpTree`] from a [`Vec`] of items using multiple threads. The items are consumed and stored within the tree.
+    /// The `threads` parameter specifies the number of threads to use for construction. Powers of 2 are recommended for optimal performance.
     pub fn new_parallel(mut items: Vec<T>, threads: usize) -> Self 
     where
         T: Send,
@@ -198,7 +199,6 @@ impl<T: Distance<T>> VpTree<T> {
                 self.search_rec(left, len_left, target, k, heap, tau, exclusive);
             }
         }
-        
     }
 
     fn search_nearest_rec<U: Distance<T>>(
