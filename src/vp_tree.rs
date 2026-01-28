@@ -6,8 +6,10 @@ use crate::{Distance, Querry};
 /// Requires stored elements to implement the [`Distance`] trait to themselves.
 /// Search targets are required to implement [`Distance`] to the stored type.
 /// 
+/// 
 /// While constructing the tree takes longer than a naive linear search, nearest neighbor and radius searches are significantly faster 
 /// resulting in overall performance gains for multiple searches on the same dataset.
+/// 
 /// 
 /// The tree takes 8 bytes of memory per stored element for the distance thresholds, plus the memory required to store the elements themselves.
 #[derive(Debug, Clone, PartialEq)]

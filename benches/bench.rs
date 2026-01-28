@@ -3,7 +3,7 @@ use std::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use vp_tree::Distance;
 
-const DIMENSIONS: usize = 2;
+const DIMENSIONS: usize = 3;
 
 #[derive(Clone)]
 struct Point<const D: usize> {
@@ -135,7 +135,7 @@ fn k_nearest_neighbors_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("VpTree K Nearest Neighbors Search");
 
     let num_points = [10_000, 100_000, 1_000_000];
-    let ks = [1, 5, 10, 50, 500, 1000];
+    let ks = [1, 5, 10, 50];
 
     for &points in &num_points {
         for k in &ks {
@@ -162,7 +162,7 @@ fn k_nearest_neighbors_search_index(c: &mut Criterion) {
     let mut group = c.benchmark_group("VpTree K Nearest Neighbors Search (Indirect access)");
 
     let num_points = [10_000, 100_000, 1_000_000];
-    let ks = [1, 5, 10, 50, 500, 1000];
+    let ks = [1, 5, 10, 50];
 
     for &points in &num_points {
         for k in &ks {

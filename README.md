@@ -3,6 +3,8 @@
 A `VpTree` is a data structure that enables efficient nearest neighbor, 
 k-nearest neighbors, and radius searches in metric spaces with arbitrary dimensionality.
 
+Why use this crate? The implementation is focused on speed and easy to use with all types by implementing a simple trait. In my benchmarks, it outperforms the "vpsearch" and "vec-vp-tree" crates by a significant margin for building with similar performance for searching.
+
 The implementation is generic over any type that implements the `Distance` trait.
 The `VpTree` requires stored elements to implement the `Distance` in relation to themselves. 
 For faster tree construction, it is recommended to also implement the `Distance::distance_heuristic` method (for example squared distance to avoid square root calculations) to accelerate tree construction.

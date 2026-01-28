@@ -1,5 +1,7 @@
 
 /// [`Distance`] trait to be implemented by types stored in the [`crate::VpTree`].
+/// 
+/// 
 /// The [`Distance::distance`] method should return a non-negative [f64] representing the distance between self and other.
 /// In case there is an efficient way to compute the squared distance, the [`Distance::distance_heuristic`] method can be overridden 
 /// to accelerate the building of the [`crate::VpTree`].
