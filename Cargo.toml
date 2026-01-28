@@ -6,7 +6,7 @@ authors = ["Tom Paßberg"]
 license = "MIT"
 description = "Vantage Point Tree (VPTree) for fast k-NN and radius searches in metric spaces."
 repository = "https://github.com/Tomyyy-1337/vp_tree/"
-keywords = ["utility", "data", "search", "distance", "similarity", "knn"]
+keywords = ["data", "search", "distance", "similarity", "knn"]
 categories = ["Data Structures", "Algorithms", "Search"]
 readme = "README.md"
 
