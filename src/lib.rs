@@ -46,6 +46,10 @@
 //!    Point { x: 3.0, y: 3.0 },
 //! ];
 //! 
+//! // Build VpTree storing references to the original points 
+//! let _vp_tree_index = VpTree::new_index(&points);
+//! 
+//! // Build VpTree storing owned points (preferable for faster querrying)
 //! let vp_tree = VpTree::new(points);
 //! 
 //! let target = Point { x: 2.1, y: 2.5 };
