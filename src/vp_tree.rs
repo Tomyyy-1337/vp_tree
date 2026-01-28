@@ -28,7 +28,7 @@ impl<T: Distance<T>> VpTree<T> {
     }   
 
     /// Constructs a new [`VpTree`] from a [`Vec`] of items using multiple threads. The items are consumed and stored within the tree.
-    /// The `threads` parameter specifies the number of threads to use for construction. Powers of 2 are recommended for optimal performance.
+    /// The `threads` parameter specifies the number of threads to use for construction. Powers of 2 (2,4,8,16) are recommended for optimal performance. 
     pub fn new_parallel(mut items: Vec<T>, threads: usize) -> Self 
     where
         T: Send,
@@ -36,6 +36,27 @@ impl<T: Distance<T>> VpTree<T> {
         let mut nodes = vec![0.0; items.len()];
         Self::build_from_points_par(&mut items, &mut nodes, threads);
         VpTree { items, nodes }
+    }
+
+    /// Constructs a new [`VpTree`] from a slice of items, storing references to the original items.
+    /// 
+    /// Querrying the tree is faster when storing owned items directly. Use [`Self::new`] or [`Self::new_parallel`] to store owned items.
+    /// Building the tree using references might be faster on datatets with large datapoints. Benchmarking is recommended to determine the best approach for your use case.
+    pub fn new_index(items: &[T]) -> VpTree<&T> {
+        let items = items.iter().collect::<Vec<&T>>();
+        VpTree::<&T>::new(items)
+    }
+
+    /// Constructs a new [`VpTree`] from a slice of items using multiple threads, storing references to the original items.
+    /// 
+    /// Querrying the tree is faster when storing owned items directly. Use [`Self::new`] or [`Self::new_parallel`] to store owned items.
+    /// Building the tree using references might be faster on datatets with large datapoints. Benchmarking is recommended to determine the best approach for your use case. 
+    pub fn new_index_parallel(items: &[T], threads: usize) -> VpTree<&T> 
+    where
+        T: Sync,
+    {
+        let items = items.iter().collect::<Vec<&T>>();
+        VpTree::<&T>::new_parallel(items, threads)
     }
 
     /// Performs a query on the VpTree using the specified target and query parameters.

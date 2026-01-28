@@ -81,8 +81,8 @@ fn main() {
 
 fn find_nearest_neighbor_linear<'a>(points: &'a Vec<Point>, target: &Point) -> Option<&'a Point> {
     points.iter().min_by(|a, b| {
-        let dist_a = a.distance_heuristic(target);
-        let dist_b = b.distance_heuristic(target);
+        let dist_a = a.distance_heuristic(&target);
+        let dist_b = b.distance_heuristic(&target);
         dist_a.partial_cmp(&dist_b).unwrap()
     })
 }
@@ -136,6 +136,6 @@ impl<'a> Ord for HeapItemHelper<'a> {
 fn find_in_radius_linear<'a>(points: &'a Vec<Point>, target: &Point, radius: f64) -> Vec<&'a Point> {
     points
         .iter()
-        .filter(|p| p.distance_heuristic(target) <= radius * radius)
+        .filter(|p| p.distance_heuristic(&target) <= radius * radius)
         .collect()
 }

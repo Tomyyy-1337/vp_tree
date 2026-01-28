@@ -64,3 +64,30 @@ pub trait Distance<T> {
         self.distance(other)
     }
 }
+
+impl<'a, T: Distance<T>> Distance<&'a T> for &'a T {
+    fn distance(&self, other: &&'a T) -> f64 {
+        (*self).distance(*other)
+    }
+    fn distance_heuristic(&self, other: &&'a T) -> f64 {
+        (*self).distance_heuristic(*other)
+    }
+}
+
+impl<T: Distance<T>> Distance<T> for &T {
+    fn distance(&self, other: &T) -> f64 {
+        (*self).distance(other)
+    }
+    fn distance_heuristic(&self, other: &T) -> f64 {
+        (*self).distance_heuristic(other)
+    }
+}
+
+impl<T: Distance<T>> Distance<&T> for T {
+    fn distance(&self, other: &&T) -> f64 {
+        self.distance(*other)
+    }
+    fn distance_heuristic(&self, other: &&T) -> f64 {
+        self.distance_heuristic(*other)
+    }
+}
