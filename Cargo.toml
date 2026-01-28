@@ -7,7 +7,7 @@ license = "MIT"
 description = "Vantage Point Tree (VPTree) for fast k-NN and radius searches in metric spaces."
 repository = "https://github.com/Tomyyy-1337/vp_tree/"
 keywords = ["data", "search", "distance", "similarity", "knn"]
-categories = ["data-structures", "algorithms", "search"]
+categories = ["data-structures", "algorithms"]
 readme = "README.md"
 
 [dependencies]
