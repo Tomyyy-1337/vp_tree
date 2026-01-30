@@ -145,6 +145,7 @@ impl<T: Distance<T>> VpTree<T> {
         Self::build_from_points(right_slice, right_nodes);
     }
 
+    #[inline(always)]
     fn internal_build<'a>(items: &'a mut [T], nodes: &'a mut [f64]) -> (&'a mut [T], &'a mut [T], &'a mut [f64], &'a mut [f64]) {
         let i = fastrand::usize(..items.len());
         items.swap(0, i);
@@ -155,7 +156,7 @@ impl<T: Distance<T>> VpTree<T> {
         let (_, median_item, _) = slice.select_nth_unstable_by(median, |a, b| {
             let dist_a = random_element.distance_heuristic(a);
             let dist_b = random_element.distance_heuristic(b);
-            dist_a.partial_cmp(&dist_b).unwrap()
+            dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Less)
         });
 
         nodes[0] = random_element.distance(median_item);
@@ -187,8 +188,8 @@ impl<T: Distance<T>> VpTree<T> {
                 heap.pop();
             }
             heap.push(HeapItem { index: node_index, distance: dist });
-            if heap.len() == k {
-                *tau = heap.peek().unwrap().distance;
+            if heap.len() == k && let Some(peek) = heap.peek() {
+                *tau = peek.distance;
             }
         }
 
@@ -249,6 +250,16 @@ impl<T: Distance<T>> VpTree<T> {
                 self.search_nearest_rec(left, len_left, target, best_index, best_distance, exclusive);
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+struct OrderedFloat(f64);
+
+impl Eq for OrderedFloat {}
+impl Ord for OrderedFloat {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Less)
     }
 }
 

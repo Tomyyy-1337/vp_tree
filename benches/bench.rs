@@ -3,7 +3,7 @@ use std::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use vp_tree::Distance;
 
-const DIMENSIONS: usize = 20;
+const DIMENSIONS: usize = 2;
 
 #[derive(Clone)]
 struct Point<const D: usize> {
