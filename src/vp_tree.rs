@@ -163,6 +163,7 @@ impl<T: Distance<T>> VpTree<T> {
 
         let (left_slice, right_slice) = slice.split_at_mut(median);
         let (left_nodes, right_nodes) = nodes[1..].split_at_mut(median);
+
         (left_slice, right_slice, left_nodes, right_nodes)
     }
 
@@ -282,6 +283,6 @@ impl PartialOrd for HeapItem {
 
 impl Ord for HeapItem {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.distance.partial_cmp(&other.distance).unwrap()
+        self.distance.partial_cmp(&other.distance).unwrap_or(std::cmp::Ordering::Less)
     }
 }
