@@ -50,8 +50,9 @@ let points = vec![
 // Build VpTree storing references to the original points 
 let _vp_tree_index = VpTree::new_index(&points);
 
-// Build VpTree storing owned points (preferable for faster querrying)
-let vp_tree = VpTree::new(points);
+// Build VpTree storing owned data on 8 threads 
+// If possible, prefere building the tree with owned data for best performance
+let vp_tree = VpTree::new_parallel(points, 8); 
 
 let target = Point { x: 2.1, y: 2.5 };
 
