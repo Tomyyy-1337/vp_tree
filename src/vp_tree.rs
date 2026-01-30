@@ -126,28 +126,10 @@ impl<T: Distance<T>> VpTree<T> {
             return;
         }
 
-        let i = fastrand::usize(..items.len());
-        items.swap(0, i);
-        let (random_element, slice) = items.split_first_mut().unwrap();
-        
-        let median = slice.len() / 2;
-
-        let (_, median_item, _) = slice.select_nth_unstable_by(median, |a, b| {
-            let dist_a = random_element.distance_heuristic(a);
-            let dist_b = random_element.distance_heuristic(b);
-            dist_a.partial_cmp(&dist_b).unwrap()
-        });
-
-        let threashold = random_element.distance(median_item);
-        nodes[0] = threashold;
-
-        let (left_slice, right_slice) = slice.split_at_mut(median);
-        let (left_nodes, right_nodes) = nodes[1..].split_at_mut(median);
+        let (left_slice, right_slice, left_nodes, right_nodes) = Self::internal_build(items, nodes);
 
         std::thread::scope(|s| {
-            s.spawn(|| 
-                Self::build_from_points_par(left_slice, left_nodes, threads / 2 + threads % 2)
-            );
+            s.spawn(|| Self::build_from_points_par(left_slice, left_nodes, threads / 2 + threads % 2));
             Self::build_from_points_par(right_slice, right_nodes, threads / 2);
         });
     }
@@ -157,10 +139,17 @@ impl<T: Distance<T>> VpTree<T> {
             return;
         }
 
+        let (left_slice, right_slice, left_nodes, right_nodes) = Self::internal_build(items, nodes);
+
+        Self::build_from_points(left_slice, left_nodes);
+        Self::build_from_points(right_slice, right_nodes);
+    }
+
+    fn internal_build<'a>(items: &'a mut [T], nodes: &'a mut [f64]) -> (&'a mut [T], &'a mut [T], &'a mut [f64], &'a mut [f64]) {
         let i = fastrand::usize(..items.len());
         items.swap(0, i);
         let (random_element, slice) = items.split_first_mut().unwrap();
-        
+            
         let median = slice.len() / 2;
 
         let (_, median_item, _) = slice.select_nth_unstable_by(median, |a, b| {
@@ -169,14 +158,11 @@ impl<T: Distance<T>> VpTree<T> {
             dist_a.partial_cmp(&dist_b).unwrap()
         });
 
-        let threashold = random_element.distance(median_item);
-        nodes[0] = threashold;
-        
+        nodes[0] = random_element.distance(median_item);
+
         let (left_slice, right_slice) = slice.split_at_mut(median);
         let (left_nodes, right_nodes) = nodes[1..].split_at_mut(median);
-
-        Self::build_from_points(left_slice, left_nodes);
-        Self::build_from_points(right_slice, right_nodes);
+        (left_slice, right_slice, left_nodes, right_nodes)
     }
 
     fn search_rec<U: Distance<T>>(
@@ -223,6 +209,8 @@ impl<T: Distance<T>> VpTree<T> {
             }
         }
     }
+
+
 
     fn search_nearest_rec<U: Distance<T>>(
         &self,
