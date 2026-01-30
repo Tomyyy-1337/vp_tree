@@ -253,17 +253,9 @@ impl<T: Distance<T>> VpTree<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-struct OrderedFloat(f64);
-
-impl Eq for OrderedFloat {}
-impl Ord for OrderedFloat {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Less)
-    }
-}
-
 impl<T: Distance<T>> FromIterator<T> for VpTree<T> {
+    /// Constructs a new [`VpTree`] from an iterator of items. The items are consumed and stored within the tree.
+    /// This constructor uses a single thread. For parallel construction, use [`Self::new_parallel`].
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let items: Vec<T> = iter.into_iter().collect();
         VpTree::new(items)
